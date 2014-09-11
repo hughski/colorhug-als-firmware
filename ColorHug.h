@@ -658,6 +658,7 @@
 
 /* secret code */
 #define	CH_WRITE_EEPROM_MAGIC			"Un1c0rn2"
+#define	CH_FIRMWARE_ID_TOKEN			"40338ceb"
 
 /* input and output buffer offsets */
 #define	CH_BUFFER_INPUT_CMD			0x00
