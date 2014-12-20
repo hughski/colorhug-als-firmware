@@ -484,7 +484,7 @@ CHugWaitForPulse (uint32_t integral_time)
 	ClrWdt();
 
 	/* wait for rising or falling edge */
-	for (i = 0; i != integral_time; i++) {
+	for (i = 1; i != integral_time; i++) {
 		/* __      ____
 		 *   |____|    |___
 		 *
