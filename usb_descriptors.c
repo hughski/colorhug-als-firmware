@@ -119,17 +119,17 @@ sizeof(sd001),USB_DESCRIPTOR_STRING,
 #ifdef COLORHUG_BOOTLOADER
 
 /* Product string descriptor (unicode) */
-ROM struct{BYTE bLength;BYTE bDscType;WORD string[21];}sd002={
+ROM struct{BYTE bLength;BYTE bDscType;WORD string[25];}sd002={
 sizeof(sd002),USB_DESCRIPTOR_STRING,
-{'C','o','l','o','r','H','u','g',' ','(','b','o','o','t','l','o','a','d','e','r',')'
+{'C','o','l','o','r','H','u','g',' ','A','L','S',' ','(','b','o','o','t','l','o','a','d','e','r',')'
 }};
 
 #else
 
 /* Product string descriptor (unicode) */
-ROM struct{BYTE bLength;BYTE bDscType;WORD string[8];}sd002={
+ROM struct{BYTE bLength;BYTE bDscType;WORD string[12];}sd002={
 sizeof(sd002),USB_DESCRIPTOR_STRING,
-{'C','o','l','o','r','H','u','g'
+{'C','o','l','o','r','H','u','g',' ','A','L','S'
 }};
 
 #endif

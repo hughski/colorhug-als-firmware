@@ -24,7 +24,7 @@
 
 #include <GenericTypeDefs.h>
 #include <delays.h>
-#include <p18cxxx.h>
+//#include <p18cxxx.h>
 #define uint8_t		UINT8
 #define uint16_t	UINT16
 #define uint32_t	UINT32

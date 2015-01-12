@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
  *
- * Copyright (C) 2011-2013 Richard Hughes <richard@hughsie.com>
+ * Copyright (C) 2011-2015 Richard Hughes <richard@hughsie.com>
  *
  * Licensed under the GNU General Public License Version 2
  *
@@ -323,20 +323,8 @@ ProcessIO(void)
 static void
 InitializeSystem(void)
 {
-#if defined(__18F46J50)
-	/* Enable the PLL and wait 2+ms until the PLL locks
-	 * before enabling USB module */
-	unsigned int pll_startup_counter = 600;
-	OSCTUNEbits.PLLEN = 1;
-	while (pll_startup_counter--);
-
-	/* default all pins to digital */
-	ANCON0 = 0xFF;
-	ANCON1 = 0xFF;
-#elif defined(__18F4550)
 	/* default all pins to digital */
 	ADCON1 = 0x0F;
-#endif
 
 	/* set RA0, RA1 to output (freq scaling),
 	 * set RA2, RA3 to output (color select),

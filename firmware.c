@@ -37,29 +37,29 @@
 #include <USB/usb_function_hid.h>
 
 /* configuration */
-#pragma config XINST	= OFF		/* turn off extended instruction set */
+//#pragma config XINST	= OFF		/* turn off extended instruction set */
 #pragma config STVREN	= ON		/* Stack overflow reset */
-#pragma config PLLDIV	= 3		/* (12 MHz crystal used on this board) */
-#pragma config WDTEN	= ON		/* Watch Dog Timer (WDT) */
-#pragma config CP0	= OFF		/* Code protect */
-#pragma config OSC	= HSPLL		/* HS oscillator, PLL enabled, HSPLL used by USB */
-#pragma config CPUDIV	= OSC1		/* OSC1 = divide by 1 mode */
+//#pragma config PLLDIV	= 3		/* (12 MHz crystal used on this board) */
+//#pragma config WDTEN	= ON		/* Watch Dog Timer (WDT) */
+//#pragma config CP0	= OFF		/* Code protect */
+//#pragma config OSC	= HSPLL		/* HS oscillator, PLL enabled, HSPLL used by USB */
+//#pragma config CPUDIV	= OSC1		/* OSC1 = divide by 1 mode */
 #pragma config IESO	= OFF		/* Internal External (clock) Switchover */
 #pragma config FCMEN	= ON		/* Fail Safe Clock Monitor */
-#pragma config T1DIG	= ON		/* secondary clock Source */
-#pragma config LPT1OSC	= OFF		/* low power timer*/
-#pragma config WDTPS	= 2048		/* Watchdog Timer Postscaler */
-#pragma config DSWDTOSC	= INTOSCREF	/* DSWDT uses INTOSC/INTRC as reference clock */
-#pragma config RTCOSC	= T1OSCREF	/* RTCC uses T1OSC/T1CKI as reference clock */
-#pragma config DSBOREN	= OFF		/* Zero-Power BOR disabled in Deep Sleep */
-#pragma config DSWDTEN	= OFF		/* Deep Sleep Watchdog Timer Enable */
-#pragma config DSWDTPS	= 8192		/* Deep Sleep Watchdog Timer Postscale Select 1:8,192 (8.5 seconds) */
-#pragma config IOL1WAY	= OFF		/* The IOLOCK bit (PPSCON<0>) can be set and cleared as needed */
-#pragma config MSSP7B_EN = MSK7		/* 7 Bit address masking */
-#pragma config WPFP	= PAGE_1	/* Write Protect Program Flash Page 0 */
-#pragma config WPEND	= PAGE_0	/* Write/Erase protect Flash Memory pages */
-#pragma config WPCFG	= OFF		/* Write/Erase Protection of last page Disabled */
-#pragma config WPDIS	= OFF		/* Write Protect Disable */
+//#pragma config T1DIG	= ON		/* secondary clock Source */
+//#pragma config LPT1OSC	= OFF		/* low power timer*/
+//#pragma config WDTPS	= 2048		/* Watchdog Timer Postscaler */
+//#pragma config DSWDTOSC	= INTOSCREF	/* DSWDT uses INTOSC/INTRC as reference clock */
+//#pragma config RTCOSC	= T1OSCREF	/* RTCC uses T1OSC/T1CKI as reference clock */
+//#pragma config DSBOREN	= OFF		/* Zero-Power BOR disabled in Deep Sleep */
+//#pragma config DSWDTEN	= OFF		/* Deep Sleep Watchdog Timer Enable */
+//#pragma config DSWDTPS	= 8192		/* Deep Sleep Watchdog Timer Postscale Select 1:8,192 (8.5 seconds) */
+//#pragma config IOL1WAY	= OFF		/* The IOLOCK bit (PPSCON<0>) can be set and cleared as needed */
+//#pragma config MSSP7B_EN = MSK7		/* 7 Bit address masking */
+//#pragma config WPFP	= PAGE_1	/* Write Protect Program Flash Page 0 */
+//#pragma config WPEND	= PAGE_0	/* Write/Erase protect Flash Memory pages */
+//#pragma config WPCFG	= OFF		/* Write/Erase Protection of last page Disabled */
+//#pragma config WPDIS	= OFF		/* Write Protect Disable */
 
 #pragma rom
 
@@ -67,29 +67,29 @@ extern void _startup (void);
 void CHugHighPriorityISRCode();
 void CHugLowPriorityISRCode();
 
-#pragma code REMAPPED_RESET_VECTOR = CH_EEPROM_ADDR_RUNCODE
+//#pragma code REMAPPED_RESET_VECTOR = CH_EEPROM_ADDR_RUNCODE
 void _reset (void)
 {
-	_asm goto _startup _endasm
+	asm("goto _startup _endasm");
 }
-#pragma code REMAPPED_HIGH_INTERRUPT_VECTOR = CH_EEPROM_ADDR_HIGH_INTERRUPT
+//#pragma code REMAPPED_HIGH_INTERRUPT_VECTOR = CH_EEPROM_ADDR_HIGH_INTERRUPT
 void Remapped_High_ISR (void)
 {
-	_asm goto CHugHighPriorityISRCode _endasm
+	asm("goto CHugHighPriorityISRCode");
 }
-#pragma code REMAPPED_LOW_INTERRUPT_VECTOR = CH_EEPROM_ADDR_LOW_INTERRUPT
+//#pragma code REMAPPED_LOW_INTERRUPT_VECTOR = CH_EEPROM_ADDR_LOW_INTERRUPT
 void Remapped_Low_ISR (void)
 {
-	_asm goto CHugLowPriorityISRCode _endasm
+	asm("goto CHugLowPriorityISRCode");
 }
 
 /* actual interupt handlers */
-#pragma interrupt CHugHighPriorityISRCode
+//#pragma interrupt CHugHighPriorityISRCode
 void CHugHighPriorityISRCode()
 {
 }
 
-#pragma interruptlow CHugLowPriorityISRCode
+//#pragma interruptlow CHugLowPriorityISRCode
 void CHugLowPriorityISRCode()
 {
 }
@@ -97,15 +97,15 @@ void CHugLowPriorityISRCode()
 /* If we program the firmware to the device without a bootloader then
  * this sets up the interrupt vectors properly.
  * The colorhug-inhx32-to-bin will ignore any code < 0x4000 */
-#pragma code HIGH_INTERRUPT_VECTOR = 0x08
+//#pragma code HIGH_INTERRUPT_VECTOR = 0x08
 void CHugHighPriorityISRPlaceholder (void)
 {
-	_asm goto CH_EEPROM_ADDR_HIGH_INTERRUPT _endasm
+	asm("goto CH_EEPROM_ADDR_HIGH_INTERRUPT");
 }
-#pragma code LOW_INTERRUPT_VECTOR = 0x18
+//#pragma code LOW_INTERRUPT_VECTOR = 0x18
 void CHugLowPriorityISRPlaceholder (void)
 {
-	_asm goto CH_EEPROM_ADDR_LOW_INTERRUPT _endasm
+	asm("goto CH_EEPROM_ADDR_LOW_INTERRUPT");
 }
 
 /* ensure this is incremented on each released build */
@@ -158,7 +158,7 @@ static uint8_t		flash_success = 0xff;
 uint8_t
 CHugGetLEDs(void)
 {
-	return (PORTEbits.RE1 << 1) + PORTEbits.RE0;
+	return PORTAbits.RA0;
 }
 
 /**
@@ -167,15 +167,7 @@ CHugGetLEDs(void)
 static void
 CHugSetLEDsInternal(uint8_t leds)
 {
-	/* the first few boards on the P&P machines had the
-	 * LEDs soldered the wrong way around */
-	if ((PcbErrata & CH_PCB_ERRATA_SWAPPED_LEDS) > 0) {
-		PORTEbits.RE0 = (leds & CH_STATUS_LED_RED) >> 1;
-		PORTEbits.RE1 = (leds & CH_STATUS_LED_GREEN);
-	} else {
-		PORTEbits.RE0 = (leds & CH_STATUS_LED_GREEN);
-		PORTEbits.RE1 = (leds & CH_STATUS_LED_RED) >> 1;
-	}
+	PORTAbits.RA0 = leds;
 }
 
 /**
@@ -1111,9 +1103,7 @@ CHugTakeReadingArray(uint8_t *data)
 	}
 
 	/* success */
-	rc = CH_ERROR_NONE;
-out:
-	return rc;
+	return CH_ERROR_NONE;
 }
 
 /**
@@ -1184,7 +1174,7 @@ ProcessIO(void)
 	cmd = RxBuffer[CH_BUFFER_INPUT_CMD];
 	switch(cmd) {
 	case CH_CMD_GET_HARDWARE_VERSION:
-		TxBuffer[CH_BUFFER_OUTPUT_DATA] = PORTB & 0x0f;
+		TxBuffer[CH_BUFFER_OUTPUT_DATA] = 0x03;
 		break;
 	case CH_CMD_GET_COLOR_SELECT:
 		TxBuffer[CH_BUFFER_OUTPUT_DATA] = CHugGetColorSelect();
@@ -1497,16 +1487,16 @@ InitializeSystem(void)
 	TRISA = 0xf0;
 
 	/* set RB0 to RB3 to input (h/w revision) others input (unused) */
-	TRISB = 0xff;
+//	TRISB = 0xff;
 
 	/* set RC0 to RC2 to input (unused) */
-	TRISC = 0xff;
+//	TRISC = 0xff;
 
 	/* set RD0 to RD7 to input (unused) */
-	TRISD = 0xff;
+//	TRISD = 0xff;
 
 	/* set RE0, RE1 output (LEDs) others input (unused) */
-	TRISE = 0x3c;
+//	TRISE = 0x3c;
 
 	/* The USB module will be enabled if the bootloader has booted,
 	 * so we soft-detach from the host. */
@@ -1649,8 +1639,8 @@ main(void)
 		  (uint8_t *) &flash_success);
 
 	/* the watchdog saved us from our doom */
-	if (!RCONbits.NOT_TO)
-		CHugFatalError(CH_ERROR_WATCHDOG);
+//	if (!RCONbits.NOT_TO)
+//		CHugFatalError(CH_ERROR_WATCHDOG);
 
 	/* do the welcome flash */
 	CHugWelcomeFlash();

@@ -31,41 +31,28 @@
 MICROCHIP_ROOT	= /opt/microchip
 DOWNLOAD_DIR 	= $(shell pwd)/microchip-toolchain-downloads
 
-MICROCHIP_TOOLCHAIN_ROOT = ${MICROCHIP_ROOT}/mplabc18/v3.40
+MICROCHIP_TOOLCHAIN_ROOT = ${MICROCHIP_ROOT}/xc8/v1.33
 TOOLCHAIN_URL = http://ww1.microchip.com/downloads/mplab/X/mplabc18-v3.40-linux-full-installer.run
 TOOLCHAIN_INSTALLER   = ${DOWNLOAD_DIR}/mplabc18-v3.40-linux-full-installer.run
 TOOLCHAIN_UNINSTALLER = ${MICROCHIP_TOOLCHAIN_ROOT}/UninstallMPLABC18v3.40
 
-CC = ${MICROCHIP_TOOLCHAIN_ROOT}/bin/mcc18
+CC = ${MICROCHIP_TOOLCHAIN_ROOT}/bin/xc8
 AS = ${MICROCHIP_TOOLCHAIN_ROOT}/mpasm/MPASMWIN
-LD = ${MICROCHIP_TOOLCHAIN_ROOT}/bin/mplink
-AR = ${MICROCHIP_TOOLCHAIN_ROOT}/bin/mplib
+LD = ${MICROCHIP_TOOLCHAIN_ROOT}/bin/xc8
+AR = ${MICROCHIP_TOOLCHAIN_ROOT}/bin/xc8s
 COLORHUG_CMD = /usr/bin/colorhug-cmd
 
 MICROCHIP_APP_LIB_ROOT 	 = ${MICROCHIP_ROOT}/libs-v2013-06-15
 
-APP_LIB_URL   = http://ww1.microchip.com/downloads/en/softwarelibrary/microchip-libraries-for-applications-v2013-06-15-linux-installer.run
-APP_LIB_INSTALLER   = ${DOWNLOAD_DIR}/microchip-application-libraries-v2013-06-15-linux-installer.run
-APP_LIB_UNINSTALLER = ${MICROCHIP_APP_LIB_ROOT}/Uninstall\ Microchip\ Application\ Libraries\ v2013-06-15
-
 .DEFAULT_GOAL := all
-.PHONY: 							\
-	clean							\
-	all							\
-	check-app-lib 						\
-	check-toolchain 					\
-	clean-app-lib						\
-	clean-toolchain 					\
-	sudo-install-app-lib					\
-	sudo-install-toolchain 					\
-	sudo-uninstall-app-lib					\
-	sudo-uninstall-toolchain
 
 # include toolchain headers and app lib includes into the build
 CFLAGS  +=							\
+	-I.				\
 	-I$(MICROCHIP_TOOLCHAIN_ROOT)/h				\
+	-I$(MICROCHIP_TOOLCHAIN_ROOT)/include/plib		\
 	-I${MICROCHIP_APP_LIB_ROOT}/Microchip/Include		\
-	-p18f46j50						\
+	--chip=16F1454						\
 	-w3							\
 	-nw=3004
 firmware_CFLAGS = ${CFLAGS}
@@ -73,14 +60,14 @@ bootloader_CFLAGS = ${CFLAGS} -DCOLORHUG_BOOTLOADER
 
 # include toolchain libraries into the build
 bootloader_LDFLAGS +=						\
-	-p18f46j50						\
+	-p16F1454						\
 	-l ${MICROCHIP_TOOLCHAIN_ROOT}/lib			\
 	-w							\
 	-z__MPLAB_BUILD=1					\
 	-u_CRUNTIME
 
 firmware_LDFLAGS +=						\
-	-p18f46j50						\
+	-p16F1454						\
 	-l ${MICROCHIP_TOOLCHAIN_ROOT}/lib			\
 	-w							\
 	-v							\
@@ -109,13 +96,13 @@ bootloader_OBJS =						\
 # Treated specially since Microchip likes to put white spaces into its
 # default application install paths.
 usb_device.o: ${microchip_usbdev_SRC}
-	${CC} ${CFLAGS} ${microchip_usbdev_SRC}
+	${CC} --PASS1 ${CFLAGS} ${microchip_usbdev_SRC}
 usb_function_hid.o: ${microchip_usbhid_SRC}
-	${CC} ${CFLAGS} ${microchip_usbhid_SRC}
+	${CC} --PASS1 ${CFLAGS} ${microchip_usbhid_SRC}
 
 # common stuff
 ch-common.o: Makefile ch-common.h ch-common.c
-	$(CC) $(CFLAGS) ch-common.c
+	$(CC) --PASS1 $(CFLAGS) ch-common.c
 ch-math.o: Makefile ch-math.h ch-math.c
 	$(CC) $(CFLAGS) ch-math.c
 ch-sram.o: Makefile ch-sram.h ch-sram.c
@@ -143,91 +130,16 @@ firmware.cof firmware.hex: Makefile ${firmware_OBJS}
 firmware.bin: firmware.hex $(COLORHUG_CMD)
 	$(COLORHUG_CMD) inhx32-to-bin $< $@
 
-all: sanity firmware.bin bootloader.hex
+all: firmware.bin bootloader.hex
 
-install: sanity firmware.bin
+install: firmware.bin
 	${COLORHUG_CMD} flash-firmware-force firmware.bin
 
-test: sanity firmware.bin
+test: firmware.bin
 	${COLORHUG_CMD} set-integral-time 15 && \
 	${COLORHUG_CMD} take-reading-raw -v
 
-sanity: sanity-toolchain sanity-app-lib
-	@${COLORHUG_CMD} >/dev/null 2>&1 || test $$? -ne 127 || { 			\
-		echo "####  You need the tool '${COLORHUG_CMD}' from the package";	\
-		echo "####  'colorhug-client' in your PATH to build the firmware.";	\
-		echo "####";              						\
-		echo "####  If colorhug-client is installed then ${COLORHUG_CMD}";	\
-		echo "####  usually resides in /usr/bin.";				\
-		echo "####"; false; }
-
-clean-app-lib:
-	rm -rf ${DOWNLOAD_DIR}/
-
-sanity-app-lib:
-	@test -d ${MICROCHIP_APP_LIB_ROOT}/Microchip/Include || { echo "";		\
-		echo "####  You are lacking the Microchip application libraries.";	\
-		echo "####  To fix it please run:"; 					\
-		echo "		make sudo-install-app-lib"; 				\
-		echo ""; false; }
-
-${APP_LIB_INSTALLER}:
-	mkdir -p ${DOWNLOAD_DIR}
-	@echo "####  Downloading the application libraries installer from ${APP_LIB_URL}."
-	wget -O $@ ${APP_LIB_URL}
-	chmod 755 $@
-
-sanity-app-lib-installer: ${APP_LIB_INSTALLER}
-	@${APP_LIB_INSTALLER} --version >/dev/null 2>&1 || test $$? -ne 127 || { 		\
-		echo "####  Unable to execute the application library installer";		\
-		echo "      ${APP_LIB_INSTALLER}";						\
-		echo "####  If you are on a x86_64 system please install 32bit support.";	\
-		false; }
-
-sudo-install-app-lib: sanity-app-lib-installer
-	sudo ${APP_LIB_INSTALLER} --mode unattended --prefix "${MICROCHIP_APP_LIB_ROOT}" >/dev/null &&  \
-		echo "Done." &&					\
-	sudo rm /lib/libusb* /lib/libUSB*
-
-sudo-uninstall-app-lib: ${APP_LIB_UNINSTALLER}
-	sudo ${APP_LIB_UNINSTALLER} --mode unattended &&	\
-		echo "Done."
-
-clean-toolchain:
-	rm -rf ${DOWNLOAD_DIR}/
-
-sanity-toolchain:
-	@${CC} -v    >/dev/null 2>&1 &&					\
-	 ${LD} -v    >/dev/null 2>&1 || { echo "";			\
-		echo "####  You are lacking the Microchip toolchain.";	\
-		echo "####  To fix it please run:"; 			\
-		echo "		make sudo-install-toolchain"; 		\
-		echo ""; false; }
-
-${TOOLCHAIN_INSTALLER}:
-	mkdir -p ${DOWNLOAD_DIR}
-	@echo "####  Downloading the toolchain installer from ${TOOLCHAIN_URL}."
-	wget -O $@ ${TOOLCHAIN_URL}
-	chmod 755 $@
-
-sanity-toolchain-installer: ${TOOLCHAIN_INSTALLER}
-	@${TOOLCHAIN_INSTALLER} --version >/dev/null 2>&1 || test $$? -ne 127 || { 		\
-		echo "####  Unable to execute the toolchain installer";          		\
-		echo "      ${TOOLCHAIN_INSTALLER}";						\
-		echo "####  If you are on a x86_64 system please install 32bit support, e.g. glibc.i686 libstdc++.i686";	\
-		false; }
-
-sudo-install-toolchain: sanity-toolchain-installer
-	sudo ${TOOLCHAIN_INSTALLER} --mode unattended &&	\
-		cd ${MICROCHIP_TOOLCHAIN_ROOT}/lib/ &&		\
-		sudo ln -fs p18F46J50.lib  p18f46j50.lib &&	\
-		echo "Done."
-
-sudo-uninstall-toolchain: ${TOOLCHAIN_UNINSTALLER}
-	sudo ${TOOLCHAIN_UNINSTALLER} --mode unattended &&	\
-		echo "Done."
-
-clean: clean-toolchain clean-app-lib
+clean:
 	rm -f							\
 	*.hex							\
 	*.cof							\
