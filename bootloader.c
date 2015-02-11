@@ -28,59 +28,21 @@
 #include "HardwareProfile.h"
 #include "usb_config.h"
 #include "ch-common.h"
+#include "ch-flash.h"
+#include "ch-self-test.h"
 
-#include <flash.h>
-
+#include <delays.h>
 #include <USB/usb.h>
 #include <USB/usb_common.h>
 #include <USB/usb_device.h>
 #include <USB/usb_function_hid.h>
 
 /* configuration */
-#pragma config XINST	= OFF		/* turn off extended instruction set */
-#pragma config STVREN	= ON		/* Stack overflow reset */
-#pragma config PLLDIV	= 3		/* (12 MHz crystal used on this board) */
-#pragma config WDTEN	= ON		/* Watch Dog Timer (WDT) */
-#pragma config CP0	= OFF		/* Code protect */
-#pragma config OSC	= HSPLL		/* HS oscillator, PLL enabled, HSPLL used by USB */
-#pragma config CPUDIV	= OSC1		/* OSC1 = divide by 1 mode */
-#pragma config IESO	= OFF		/* Internal External (clock) Switchover */
-#pragma config FCMEN	= ON		/* Fail Safe Clock Monitor */
-#pragma config T1DIG	= ON		/* secondary clock Source */
-#pragma config LPT1OSC	= OFF		/* low power timer*/
-#pragma config WDTPS	= 2048		/* Watchdog Timer Postscaler */
-#pragma config DSWDTOSC	= INTOSCREF	/* DSWDT uses INTOSC/INTRC as reference clock */
-#pragma config RTCOSC	= T1OSCREF	/* RTCC uses T1OSC/T1CKI as reference clock */
-#pragma config DSBOREN	= OFF		/* Zero-Power BOR disabled in Deep Sleep */
-#pragma config DSWDTEN	= OFF		/* Deep Sleep Watchdog Timer Enable */
-#pragma config DSWDTPS	= 8192		/* Deep Sleep Watchdog Timer Postscale Select 1:8,192 (8.5 seconds) */
-#pragma config IOL1WAY	= OFF		/* The IOLOCK bit (PPSCON<0>) can be set and cleared as needed */
-#pragma config MSSP7B_EN = MSK7		/* 7 Bit address masking */
-#pragma config WPFP	= PAGE_1	/* Write Protect Program Flash Page 0 */
-#pragma config WPEND	= PAGE_0	/* Write/Erase protect Flash Memory pages */
-#pragma config WPCFG	= OFF		/* Write/Erase Protection of last page Disabled */
-#pragma config WPDIS	= OFF		/* Write Protect Disable */
-
-#pragma code High_ISR = 0x08
-void
-CHugHighPriorityISRCode (void)
-{
-	_asm goto CH_EEPROM_ADDR_HIGH_INTERRUPT _endasm
-}
-
-#pragma code Low_ISR = 0x18
-void
-CHugLowPriorityISRCode (void)
-{
-	_asm goto CH_EEPROM_ADDR_LOW_INTERRUPT _endasm
-}
+__CONFIG(FOSC_INTOSC & WDTE_SWDTEN & PWRTE_ON & MCLRE_OFF & CP_ON & BOREN_ON & CLKOUTEN_OFF & IESO_OFF & FCMEN_OFF);
+__CONFIG(WRT_HALF & CPUDIV_NOCLKDIV & USBLSCLK_48MHz & PLLMULT_3x & PLLEN_ENABLED & STVREN_ON & BORV_LO & LPBOR_OFF & LVP_OFF);
 
 /* ensure this is incremented on each released build */
 static uint16_t	FirmwareVersion[3] = { 0, 2, 1 };
-
-#pragma rom
-
-#pragma udata
 
 /* USB idle support */
 static uint8_t idle_command = 0x00;
@@ -89,21 +51,27 @@ static uint8_t idle_counter = 0x00;
 /* USB buffers */
 uint8_t RxBuffer[CH_USB_HID_EP_SIZE];
 uint8_t TxBuffer[CH_USB_HID_EP_SIZE];
-uint8_t FlashBuffer[CH_FLASH_WRITE_BLOCK_SIZE];
 
 USB_HANDLE	USBOutHandle = 0;
 USB_HANDLE	USBInHandle = 0;
 
-/* flash the LEDs when in bootloader mode */
-#define	BOOTLOADER_FLASH_INTERVAL	0x2fff
-static uint16_t led_counter = 0x0;
+/**
+ * ISRCode:
+ **/
+void interrupt
+ISRCode (void)
+{
+	asm("ljmp 0x1004");
+}
 
-/* protect against having a bad flash */
-static uint8_t flash_success = 0xff;
-
-#pragma code
-
-#define CHugBootFlash()		(((int(*)(void))(CH_EEPROM_ADDR_RUNCODE))())
+/**
+ * CHugBootFlash:
+ **/
+static void
+CHugBootFlash(void)
+{
+	asm("ljmp 0x1000");
+}
 
 /**
  * CHugCalculateChecksum:
@@ -126,11 +94,10 @@ CHugDeviceIdle(void)
 {
 	switch (idle_command) {
 	case CH_CMD_RESET:
-		Reset();
+		RESET();
 		break;
 	case CH_CMD_BOOT_FLASH:
 		CHugBootFlash();
-		CHugFatalError(CH_ERROR_NOT_IMPLEMENTED);
 		break;
 	}
 	idle_command = 0x00;
@@ -148,12 +115,12 @@ ProcessIO(void)
 	uint8_t checksum;
 	uint8_t cmd;
 	uint8_t rc = CH_ERROR_NONE;
+	static uint16_t led_counter = 0x0;
 
 	/* reset the LED state */
-	led_counter--;
-	if (led_counter == 0) {
-		PORTE ^= 0x03;
-		led_counter = BOOTLOADER_FLASH_INTERVAL;
+	if (--led_counter == 0) {
+		PORTCbits.RC5 ^= 1;
+		led_counter = 0x2fff;
 	}
 
 	/* User Application USB tasks */
@@ -162,7 +129,7 @@ ProcessIO(void)
 		return;
 
 	/* no data was received */
-	if(HIDRxHandleBusy(USBOutHandle)) {
+	if (HIDRxHandleBusy(USBOutHandle)) {
 		if (idle_counter++ == 0xff &&
 		    idle_command != 0x00)
 			CHugDeviceIdle();
@@ -178,7 +145,7 @@ ProcessIO(void)
 	cmd = RxBuffer[CH_BUFFER_INPUT_CMD];
 	switch(cmd) {
 	case CH_CMD_GET_HARDWARE_VERSION:
-		TxBuffer[CH_BUFFER_OUTPUT_DATA] = PORTB & 0x0f;
+		TxBuffer[CH_BUFFER_OUTPUT_DATA] = 0x03;
 		break;
 	case CH_CMD_RESET:
 		/* only reset when USB stack is not busy */
@@ -190,11 +157,6 @@ ProcessIO(void)
 			2 * 3);
 		break;
 	case CH_CMD_ERASE_FLASH:
-		/* are we lost or stolen */
-		if (flash_success == 0xff) {
-			rc = CH_ERROR_DEVICE_DEACTIVATED;
-			break;
-		}
 		memcpy (&address,
 			(const void *) &RxBuffer[CH_BUFFER_INPUT_DATA+0],
 			2);
@@ -206,14 +168,9 @@ ProcessIO(void)
 		memcpy (&erase_length,
 			(const void *) &RxBuffer[CH_BUFFER_INPUT_DATA+2],
 			2);
-		EraseFlash(address, address + erase_length);
+		rc = CHugFlashErase(address, erase_length);
 		break;
 	case CH_CMD_READ_FLASH:
-		/* are we lost or stolen */
-		if (flash_success == 0xff) {
-			rc = CH_ERROR_DEVICE_DEACTIVATED;
-			break;
-		}
 		/* allow to read any address */
 		memcpy (&address,
 			(const void *) &RxBuffer[CH_BUFFER_INPUT_DATA+0],
@@ -223,23 +180,19 @@ ProcessIO(void)
 			rc = CH_ERROR_INVALID_LENGTH;
 			break;
 		}
-		ReadFlash(address, length,
-			  (uint8_t *) &TxBuffer[CH_BUFFER_OUTPUT_DATA+1]);
+		rc = CHugFlashRead(address, length,
+				   &TxBuffer[CH_BUFFER_OUTPUT_DATA+1]);
 		checksum = CHugCalculateChecksum (&TxBuffer[CH_BUFFER_OUTPUT_DATA+1],
 						  length);
 		TxBuffer[CH_BUFFER_OUTPUT_DATA+0] = checksum;
 		break;
 	case CH_CMD_WRITE_FLASH:
-		/* are we lost or stolen */
-		if (flash_success == 0xff) {
-			rc = CH_ERROR_DEVICE_DEACTIVATED;
-			break;
-		}
 		/* write to flash that's not the bootloader */
 		memcpy (&address,
 			(const void *) &RxBuffer[CH_BUFFER_INPUT_DATA+0],
 			2);
-		if (address < CH_EEPROM_ADDR_RUNCODE) {
+		if (address < CH_EEPROM_ADDR_RUNCODE ||
+		    address > CH_EEPROM_ADDR_MAX) {
 			rc = CH_ERROR_INVALID_ADDRESS;
 			break;
 		}
@@ -254,32 +207,10 @@ ProcessIO(void)
 			rc = CH_ERROR_INVALID_CHECKSUM;
 			break;
 		}
-
-		/* copy low 32 bytes into flash buffer, and only write
-		 * in 64 byte chunks as this is a limitation of the
-		 * hardware */
-		if ((address & CH_FLASH_TRANSFER_BLOCK_SIZE) == 0) {
-			memset (FlashBuffer,
-				0xff,
-				CH_FLASH_WRITE_BLOCK_SIZE);
-			memcpy (FlashBuffer,
-				(const void *) &RxBuffer[CH_BUFFER_INPUT_DATA+4],
-				length);
-		} else {
-			memcpy (FlashBuffer + CH_FLASH_TRANSFER_BLOCK_SIZE,
-				(const void *) &RxBuffer[CH_BUFFER_INPUT_DATA+4],
-				length);
-			WriteBytesFlash(address - CH_FLASH_TRANSFER_BLOCK_SIZE,
-					CH_FLASH_WRITE_BLOCK_SIZE,
-					(uint8_t *) FlashBuffer);
-		}
+		rc = CHugFlashWrite(address, length,
+				    &RxBuffer[CH_BUFFER_INPUT_DATA+4]);
 		break;
 	case CH_CMD_BOOT_FLASH:
-		/* are we lost or stolen */
-		if (flash_success == 0xff) {
-			rc = CH_ERROR_DEVICE_DEACTIVATED;
-			break;
-		}
 		/* only boot when USB stack is not busy */
 		idle_command = CH_CMD_BOOT_FLASH;
 		break;
@@ -288,11 +219,12 @@ ProcessIO(void)
 			rc = CH_ERROR_INVALID_VALUE;
 			break;
 		}
-		flash_success = RxBuffer[CH_BUFFER_INPUT_DATA];
-		EraseFlash(CH_EEPROM_ADDR_FLASH_SUCCESS,
-			   CH_EEPROM_ADDR_FLASH_SUCCESS + 1);
-		WriteBytesFlash(CH_EEPROM_ADDR_FLASH_SUCCESS, 1,
-				(uint8_t *) &RxBuffer[CH_BUFFER_INPUT_DATA]);
+		rc = CHugFlashErase(CH_EEPROM_ADDR_FLASH_SUCCESS,
+				    CH_FLASH_ERASE_BLOCK_SIZE);
+		if (rc != CH_ERROR_NONE)
+			break;
+		rc = CHugFlashWrite(CH_EEPROM_ADDR_FLASH_SUCCESS, 1,
+				    &RxBuffer[CH_BUFFER_INPUT_DATA]);
 		break;
 	case CH_CMD_SELF_TEST:
 		rc = CHugSelfTest();
@@ -318,83 +250,6 @@ ProcessIO(void)
 }
 
 /**
- * InitializeSystem:
- **/
-static void
-InitializeSystem(void)
-{
-	/* default all pins to digital */
-	ADCON1 = 0x0F;
-
-	/* set RA0, RA1 to output (freq scaling),
-	 * set RA2, RA3 to output (color select),
-	 * set RA5 to input (frequency counter),
-	 * (RA6 is "don't care" in OSC2 mode)
-	 * set RA7 to input (OSC1, HSPLL in) */
-	TRISA = 0xf0;
-
-	/* set RB0 to RB3 to input (h/w revision) others input (unused) */
-	TRISB = 0xff;
-
-	/* set RC0 to RC2 to input (unused) */
-	TRISC = 0xff;
-
-	/* set RD0 to RD7 to input (unused) */
-	TRISD = 0xff;
-
-	/* set RE0, RE1 output (LEDs) others input (unused) */
-	TRISE = 0x3c;
-
-	/* set the LED state initially */
-	PORTE = CH_STATUS_LED_RED;
-
-	/* only turn on the USB module when the device has power */
-#if defined(USE_USB_BUS_SENSE_IO)
-	tris_usb_bus_sense = INPUT_PIN;
-#endif
-
-	/* we're self powered */
-#if defined(USE_SELF_POWER_SENSE_IO)
-	tris_self_power = INPUT_PIN;
-#endif
-
-	/* Initializes USB module SFRs and firmware variables to known states */
-	USBDeviceInit();
-}
-
-/**
- * USBCBCheckOtherReq:
- *
- * Process the SETUP request and fulfill the request.
- **/
-static void
-USBCBCheckOtherReq(void)
-{
-	USBCheckHIDRequest();
-}
-
-/**
- * USBCBInitEP:
- *
- * Called when the host sends a SET_CONFIGURATION.
- **/
-static void
-USBCBInitEP(void)
-{
-	/* enable the HID endpoint */
-	USBEnableEndpoint(HID_EP,
-			  USB_IN_ENABLED|
-			  USB_OUT_ENABLED|
-			  USB_HANDSHAKE_ENABLED|
-			  USB_DISALLOW_SETUP);
-
-	/* re-arm the OUT endpoint for the next packet */
-	USBOutHandle = HIDRxPacket(HID_EP,
-				   (BYTE*)&RxBuffer,
-				   CH_USB_HID_EP_SIZE);
-}
-
-/**
  * USER_USB_CALLBACK_EVENT_HANDLER:
  * @event: the type of event
  * @pdata: pointer to the event data
@@ -406,16 +261,26 @@ USBCBInitEP(void)
  * when the USB_INTERRUPT option is selected.
  **/
 BOOL
-USER_USB_CALLBACK_EVENT_HANDLER(USB_EVENT event, void *pdata, WORD size)
+USER_USB_CALLBACK_EVENT_HANDLER(int event, void *pdata, WORD size)
 {
 	switch(event) {
 	case EVENT_TRANSFER:
 		break;
 	case EVENT_CONFIGURED:
-		USBCBInitEP();
+		/* enable the HID endpoint */
+		USBEnableEndpoint(HID_EP,
+				  USB_IN_ENABLED|
+				  USB_OUT_ENABLED|
+				  USB_HANDSHAKE_ENABLED|
+				  USB_DISALLOW_SETUP);
+
+		/* re-arm the OUT endpoint for the next packet */
+		USBOutHandle = HIDRxPacket(HID_EP,
+					   (BYTE*)&RxBuffer,
+					   CH_USB_HID_EP_SIZE);
 		break;
 	case EVENT_EP0_REQUEST:
-		USBCBCheckOtherReq();
+		USBCheckHIDRequest();
 		break;
 	case EVENT_TRANSFER_TERMINATED:
 		break;
@@ -431,14 +296,46 @@ USER_USB_CALLBACK_EVENT_HANDLER(USB_EVENT event, void *pdata, WORD size)
 void
 main(void)
 {
-	uint16_t runcode_start = 0xffff;
+	uint16_t runcode_start = 0x3f3f;
+	uint8_t flash_success = 0xff;
+
+	/* switch ports to digital mode */
+	ANSELA = 0x00;
+	ANSELC = 0x00;
+
+	/* set RA0 input-only (D+)
+	 * set RA1 input-only (D-)
+	 * set RA2 input (missing)
+	 * set RA3 input-only (MCLR)
+	 * set RA4 input (OUT)
+	 * set RA5 output (S1)
+	 * set RA6 input (n/a)
+	 * set RA7 input (n/a) */
+	TRISA = 0b11011111;
+
+	/* set RC0 input (ICSPDAT)
+	 * set RC1 input (ICSPCLK)
+	 * set RC2 output (S3)
+	 * set RC3 output (S0)
+	 * set RC4 output (S2)
+	 * set RC5 output (LED)
+	 * set RC6 input (n/a)
+	 * set RC7 input (n/a) */
+	TRISC = 0b11000011;
+
+	/* switch to 16Mhz operation */
+	OSCCONbits.SCS = 0x0;
+	OSCCONbits.IRCF = 0xf;
+
+	/* wait for the PPL to lock */
+	while (!OSCSTATbits.PLLRDY);
 
 	/* stack overflow / underflow */
-	if (STKPTRbits.STKFUL || STKPTRbits.STKUNF)
+	if (PCONbits.STKUNF || PCONbits.STKOVF)
 		CHugFatalError(CH_ERROR_OVERFLOW_STACK);
 
 	/* the watchdog saved us from our doom */
-	if (!RCONbits.NOT_TO)
+	if (!PCONbits.nRWDT)
 		CHugFatalError(CH_ERROR_WATCHDOG);
 
 	/*
@@ -447,38 +344,27 @@ main(void)
 	 *  2. the flashed program exists
 	 *  3. the flash success is 0x01
 	 */
-	ReadFlash(CH_EEPROM_ADDR_RUNCODE, 2,
-		  (uint8_t *) &runcode_start);
-	ReadFlash(CH_EEPROM_ADDR_FLASH_SUCCESS, 1,
-		  (uint8_t *) &flash_success);
-	if (RCONbits.NOT_RI &&
-	    runcode_start != 0xffff &&
+	CHugFlashRead(CH_EEPROM_ADDR_RUNCODE, 2,
+		      (uint8_t *) &runcode_start);
+	CHugFlashRead(CH_EEPROM_ADDR_FLASH_SUCCESS, 1,
+		      (uint8_t *) &flash_success);
+	if (PCONbits.nRI &&
+	    runcode_start != 0x3f3f &&
 	    flash_success == 0x01)
 		CHugBootFlash();
 
-	InitializeSystem();
+	/* Initializes USB module SFRs and firmware variables to known states */
+	USBDeviceInit();
+	USBDeviceAttach();
 
 	while(1) {
 
 		/* clear watchdog */
-		ClrWdt();
+		CLRWDT();
 
 		/* check bus status and service USB interrupts */
 		USBDeviceTasks();
 
 		ProcessIO();
 	}
-}
-
-/**
- * CHugBootFlashTemplate:
- *
- * Placeholder incase the user uses BootFlash when there is no firmware
- * image. The real firmware will overwrite this with the custom code.
- **/
-#pragma code user_app_vector=CH_EEPROM_ADDR_RUNCODE
-void
-CHugBootFlashTemplate(void)
-{
-	CHugFatalError(CH_ERROR_NOT_IMPLEMENTED);
 }

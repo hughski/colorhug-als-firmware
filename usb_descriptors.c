@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
  *
- * Copyright (C) 2011 Richard Hughes <richard@hughsie.com>
+ * Copyright (C) 2011-2015 Richard Hughes <richard@hughsie.com>
  *
  * Licensed under the GNU General Public License Version 2
  *
@@ -26,12 +26,11 @@
 
 #include "ColorHug.h"
 
+#ifndef __USB_DESCRIPTORS_C
+#define __USB_DESCRIPTORS_C
+
 #include <USB/usb.h>
 #include <USB/usb_function_hid.h>
-
-#if defined(__18CXX)
-#pragma romdata
-#endif
 
 /* device descriptor, see usb_ch9.h */
 ROM USB_DEVICE_DESCRIPTOR device_dsc=
@@ -59,7 +58,7 @@ ROM USB_DEVICE_DESCRIPTOR device_dsc=
 /* Configuration 1 Descriptor */
 ROM BYTE configDescriptor1[]={
 	/* Configuration Descriptor */
-	0x09,// sizeof(USB_CFG_DSC),	/* Size of this descriptor in bytes */
+	0x09,			/* Size of this descriptor in bytes */
 	USB_DESCRIPTOR_CONFIGURATION,	/* CONFIGURATION descriptor type */
 	0x29,0x00,			/* Total length of data */
 	1,				/* Number of interfaces */
@@ -69,7 +68,7 @@ ROM BYTE configDescriptor1[]={
 	150,				/* Max power consumption (2X mA)
 
 	/* Interface Descriptor */
-	0x09,// sizeof(USB_INTF_DSC),	/* Size of this descriptor in bytes */
+	0x09,   			/* Size of this descriptor in bytes */
 	USB_DESCRIPTOR_INTERFACE,	/* INTERFACE descriptor type */
 	0,				/* Interface Number */
 	0,				/* Alternate Setting Number */
@@ -80,16 +79,16 @@ ROM BYTE configDescriptor1[]={
 	0,				/* Interface string index */
 
 	/* HID Class-Specific Descriptor */
-	0x09,// sizeof(USB_HID_DSC)+3,	/* Size of this descriptor in bytes */
+	0x09,				/* Size of this descriptor in bytes */
 	DSC_HID,			/* HID descriptor type */
 	0x11,0x01,			/* HID Spec Release Number (BCD format) */
 	0x00,				/* Country Code (0x00 for Not supported) */
 	HID_NUM_OF_DSC,			/* Number of class descriptors, see usbcfg.h */
 	DSC_RPT,			/* Report descriptor type */
-	HID_RPT01_SIZE,0x00,// sizeof(hid_rpt01), /* Size of the report descriptor (with extra byte) */
+	HID_RPT01_SIZE,0x00,		/* Size of the report descriptor (with extra byte) */
 
 	/* Endpoint Descriptor */
-	0x07,/*sizeof(USB_EP_DSC)*/
+	0x07,
 	USB_DESCRIPTOR_ENDPOINT,	/* Endpoint Descriptor */
 	HID_EP | _EP_IN,		/* EndpointAddress */
 	_INTERRUPT,			/* Attributes */
@@ -97,7 +96,7 @@ ROM BYTE configDescriptor1[]={
 	0x01,				/* polling interval */
 
 	/* Endpoint Descriptor */
-	0x07,/*sizeof(USB_EP_DSC)*/
+	0x07,
 	USB_DESCRIPTOR_ENDPOINT,	/* Endpoint Descriptor */
 	HID_EP | _EP_OUT,		/* EndpointAddress */
 	_INTERRUPT,			/* Attributes */
@@ -106,36 +105,64 @@ ROM BYTE configDescriptor1[]={
 };
 
 /* Language code string descriptor */
-ROM struct{BYTE bLength;BYTE bDscType;WORD string[1];}sd000={
-sizeof(sd000),USB_DESCRIPTOR_STRING,{0x0409
-}};
+static ROM struct
+{
+	BYTE bLength;
+	BYTE bDscType;
+	WORD string[1];
+} sd000 =
+{
+	sizeof(sd000),
+	USB_DESCRIPTOR_STRING,
+	{0x0409}
+};
 
 /* Manufacturer string descriptor (unicode) */
-ROM struct{BYTE bLength;BYTE bDscType;WORD string[12];}sd001={
-sizeof(sd001),USB_DESCRIPTOR_STRING,
-{'H','u','g','h','s','k','i',' ','L','t','d','.',
-}};
+static ROM struct
+{
+	BYTE bLength;
+	BYTE bDscType;
+	WORD string[12];
+} sd001 =
+{
+	sizeof(sd001),
+	USB_DESCRIPTOR_STRING,
+	{'H','u','g','h','s','k','i',' ','L','t','d','.'}
+};
 
+/* Product string descriptor (unicode) */
 #ifdef COLORHUG_BOOTLOADER
-
-/* Product string descriptor (unicode) */
-ROM struct{BYTE bLength;BYTE bDscType;WORD string[25];}sd002={
-sizeof(sd002),USB_DESCRIPTOR_STRING,
-{'C','o','l','o','r','H','u','g',' ','A','L','S',' ','(','b','o','o','t','l','o','a','d','e','r',')'
-}};
-
+static ROM struct
+{
+	BYTE bLength;
+	BYTE bDscType;
+	WORD string[25];
+} sd002 =
+{
+	sizeof(sd002),
+	USB_DESCRIPTOR_STRING,
+	{'C','o','l','o','r','H','u','g',' ','A','L','S',' ',
+	 '(','b','o','o','t','l','o','a','d','e','r',')'}
+};
 #else
-
-/* Product string descriptor (unicode) */
-ROM struct{BYTE bLength;BYTE bDscType;WORD string[12];}sd002={
-sizeof(sd002),USB_DESCRIPTOR_STRING,
-{'C','o','l','o','r','H','u','g',' ','A','L','S'
-}};
-
+static ROM struct
+{
+	BYTE bLength;
+	BYTE bDscType;
+	WORD string[12];
+} sd002 =
+{
+	sizeof(sd002),
+	USB_DESCRIPTOR_STRING,
+	{'C','o','l','o','r','H','u','g',' ','A','L','S'}
+};
 #endif
 
 /* HID descriptor -- see http://www.usb.org/developers/hidpage#HID%20Descriptor%20Tool */
-ROM struct{BYTE report[HID_RPT01_SIZE];}hid_rpt01={
+ROM struct
+{
+	BYTE report[HID_RPT01_SIZE];
+} hid_rpt01 = {
 {
 	0x06, 0x00, 0xFF,		/* Usage Page = 0xFF00 (Vendor Defined Page 1) */
 	0x09, 0x01,			/* Usage (Vendor Usage 1) */
@@ -166,3 +193,5 @@ ROM BYTE *ROM USB_SD_Ptr[]=
 	(ROM BYTE *ROM)&sd001,
 	(ROM BYTE *ROM)&sd002
 };
+
+#endif

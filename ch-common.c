@@ -21,7 +21,10 @@
 
 #include "ColorHug.h"
 
+#include <delays.h>
+
 #include "ch-common.h"
+#include "ch-flash.h"
 
 /**
  * CHugGetColorSelect:
@@ -29,7 +32,7 @@
 ChColorSelect
 CHugGetColorSelect(void)
 {
-	return (PORTAbits.RA3 << 1) + PORTAbits.RA2;
+	return (PORTCbits.RC2 << 1) + PORTCbits.RC4;
 }
 
 /**
@@ -38,8 +41,8 @@ CHugGetColorSelect(void)
 void
 CHugSetColorSelect(ChColorSelect color_select)
 {
-	PORTAbits.RA2 = (color_select & 0x01);
-	PORTAbits.RA3 = (color_select & 0x02) >> 1;
+	PORTCbits.RC4 = (color_select & 0x01);
+	PORTCbits.RC2 = (color_select & 0x02) >> 1;
 }
 
 /**
@@ -48,7 +51,7 @@ CHugSetColorSelect(ChColorSelect color_select)
 ChFreqScale
 CHugGetMultiplier(void)
 {
-	return (PORTAbits.RA1 << 1) + PORTAbits.RA0;
+	return (PORTAbits.RA5 << 1) + PORTCbits.RC3;
 }
 
 /**
@@ -57,8 +60,26 @@ CHugGetMultiplier(void)
 void
 CHugSetMultiplier(ChFreqScale multiplier)
 {
-	PORTAbits.RA0 = (multiplier & 0x01);
-	PORTAbits.RA1 = (multiplier & 0x02) >> 1;
+	PORTCbits.RC3 = (multiplier & 0x01);
+	PORTAbits.RA5 = (multiplier & 0x02) >> 1;
+}
+
+/**
+ * CHugGetLEDs:
+ **/
+uint8_t
+CHugGetLEDs(void)
+{
+	return PORTCbits.RC5;
+}
+
+/**
+ * CHugSetLEDs:
+ **/
+void
+CHugSetLEDs(uint8_t leds)
+{
+	PORTCbits.RC5 = leds;
 }
 
 /**
@@ -71,109 +92,16 @@ CHugFatalError (ChError error)
 
 	/* turn off watchdog */
 	WDTCONbits.SWDTEN = 0;
-	TRISE = 0x3c;
+	TRISC = 0xdf;
 
 	while (1) {
 		for (i = 0; i < error; i++) {
-			PORTE = CH_STATUS_LED_RED;
+			CHugSetLEDs(1);
 			Delay10KTCYx(0xff);
-			PORTE = 0x00;
+			CHugSetLEDs(0);
 			Delay10KTCYx(0xff);
 		}
 		Delay10KTCYx(0xff);
 		Delay10KTCYx(0xff);
 	}
-}
-
-/**
- * CHugSelfTestSensor:
- **/
-static uint8_t
-CHugSelfTestSensor(uint8_t min_pulses)
-{
-	uint16_t i;
-	uint8_t pulses = 0;
-	uint8_t ra_tmp = PORTA;
-
-	/* check sensor reports some values */
-	for (i = 0; i < 0xffff && pulses < min_pulses; i++) {
-		if (ra_tmp != PORTA)
-			pulses++;
-	}
-	return pulses;
-}
-
-/**
- * CHugSelfTest:
- *
- * Tests the device in the following ways:
- *  - Tests the RED sensor
- *  - Tests the GREEN sensor
- *  - Tests the BLUE sensor
- **/
-uint8_t
-CHugSelfTest(void)
-{
-	const uint8_t min_pulses = 3;
-	uint8_t pulses[3];
-	uint8_t rc;
-
-	/* check multiplier can be set and read */
-	CHugSetMultiplier(CH_FREQ_SCALE_0);
-	if (CHugGetMultiplier() != CH_FREQ_SCALE_0) {
-		rc = CH_ERROR_SELF_TEST_MULTIPLIER;
-		goto out;
-	}
-	CHugSetMultiplier(CH_FREQ_SCALE_100);
-	if (CHugGetMultiplier() != CH_FREQ_SCALE_100) {
-		rc = CH_ERROR_SELF_TEST_MULTIPLIER;
-		goto out;
-	}
-
-	/* check color select can be set and read */
-	CHugSetColorSelect(CH_COLOR_SELECT_RED);
-	if (CHugGetColorSelect() != CH_COLOR_SELECT_RED) {
-		rc = CH_ERROR_SELF_TEST_COLOR_SELECT;
-		goto out;
-	}
-	CHugSetColorSelect(CH_COLOR_SELECT_GREEN);
-	if (CHugGetColorSelect() != CH_COLOR_SELECT_GREEN) {
-		rc = CH_ERROR_SELF_TEST_COLOR_SELECT;
-		goto out;
-	}
-
-	/* check red, green and blue */
-	CHugSetColorSelect(CH_COLOR_SELECT_RED);
-	pulses[CH_COLOR_OFFSET_RED] = CHugSelfTestSensor(min_pulses);
-	CHugSetColorSelect(CH_COLOR_SELECT_GREEN);
-	pulses[CH_COLOR_OFFSET_GREEN] = CHugSelfTestSensor(min_pulses);
-	CHugSetColorSelect(CH_COLOR_SELECT_BLUE);
-	pulses[CH_COLOR_OFFSET_BLUE] = CHugSelfTestSensor(min_pulses);
-
-	/* are all the results invalid? */
-	if (pulses[CH_COLOR_OFFSET_RED] != min_pulses &&
-	    pulses[CH_COLOR_OFFSET_GREEN] != min_pulses &&
-	    pulses[CH_COLOR_OFFSET_BLUE] != min_pulses) {
-		rc = CH_ERROR_SELF_TEST_SENSOR;
-		goto out;
-	}
-
-	/* one sensor color invalid */
-	if (pulses[CH_COLOR_OFFSET_RED] != min_pulses) {
-		rc = CH_ERROR_SELF_TEST_RED;
-		goto out;
-	}
-	if (pulses[CH_COLOR_OFFSET_GREEN] != min_pulses) {
-		rc = CH_ERROR_SELF_TEST_GREEN;
-		goto out;
-	}
-	if (pulses[CH_COLOR_OFFSET_BLUE] != min_pulses) {
-		rc = CH_ERROR_SELF_TEST_BLUE;
-		goto out;
-	}
-
-	/* success */
-	rc = CH_ERROR_NONE;
-out:
-	return rc;
 }

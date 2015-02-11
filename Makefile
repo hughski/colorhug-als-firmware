@@ -49,15 +49,37 @@ MICROCHIP_APP_LIB_ROOT 	 = ${MICROCHIP_ROOT}/libs-v2013-06-15
 
 # include toolchain headers and app lib includes into the build
 CFLAGS  +=							\
-	-I.				\
+	-I.							\
 	-I$(MICROCHIP_TOOLCHAIN_ROOT)/h				\
 	-I$(MICROCHIP_TOOLCHAIN_ROOT)/include/plib		\
 	-I${MICROCHIP_APP_LIB_ROOT}/Microchip/Include		\
+	-I${MICROCHIP_APP_LIB_ROOT}/Microchip			\
 	--chip=16F1454						\
+	--asmlist						\
+	--opt=+speed						\
 	-w3							\
 	-nw=3004
-firmware_CFLAGS = ${CFLAGS}
-bootloader_CFLAGS = ${CFLAGS} -DCOLORHUG_BOOTLOADER
+
+# 0000
+#  | <--- Bootloader (crossing 2 pages)
+# 0f9b
+# 1f9c
+#  | <--- Config space
+# 1fff
+# 1000
+#  | <--- Firmware (crossing 2 pages)
+# 1f9b
+# 1f9c
+#  | <--- Flash success
+# 1fff
+firmware_CFLAGS =						\
+	${CFLAGS}						\
+	--rom=1000-17ff,1800-1f9b				\
+	--codeoffset=0x1000
+bootloader_CFLAGS =						\
+	${CFLAGS}						\
+	-DCOLORHUG_BOOTLOADER					\
+	--rom=0-07ff,800-0f9b
 
 # include toolchain libraries into the build
 bootloader_LDFLAGS +=						\
@@ -75,57 +97,63 @@ firmware_LDFLAGS +=						\
 	-z__MPLAB_BUILD=1					\
 	-u_CRUNTIME
 
-microchip_usbhid_SRC = ${MICROCHIP_APP_LIB_ROOT}/Microchip/USB/HID\ Device\ Driver/usb_function_hid.c
-microchip_usbdev_SRC = ${MICROCHIP_APP_LIB_ROOT}/Microchip/USB/usb_device.c
-
 firmware_OBJS =							\
-	firmware.o						\
-	ch-common.o						\
-	ch-math.o						\
-	usb_descriptors_firmware.o				\
-	usb_device.o						\
-	usb_function_hid.o
+	firmware.p1						\
+	d10ktcyx.p1						\
+	ch-common.p1						\
+	ch-flash.p1						\
+	usb_descriptors_firmware.p1				\
+	usb_device.p1						\
+	usb_function_hid.p1
 
 bootloader_OBJS =						\
-	bootloader.o						\
-	ch-common.o						\
-	usb_descriptors_bootloader.o				\
-	usb_device.o						\
-	usb_function_hid.o
+	bootloader.p1						\
+	d10ktcyx.p1						\
+	ch-common.p1						\
+	ch-flash.p1						\
+	ch-self-test.p1						\
+	usb_descriptors_bootloader.p1				\
+	usb_device.p1						\
+	usb_function_hid.p1
 
 # Specific rules for sources from Microchip's application library.
 # Treated specially since Microchip likes to put white spaces into its
 # default application install paths.
-usb_device.o: ${microchip_usbdev_SRC}
-	${CC} --PASS1 ${CFLAGS} ${microchip_usbdev_SRC}
-usb_function_hid.o: ${microchip_usbhid_SRC}
-	${CC} --PASS1 ${CFLAGS} ${microchip_usbhid_SRC}
+usb_device.p1: usb_device.c
+	${CC} --pass1 ${CFLAGS} usb_device.c
+usb_function_hid.p1: usb_function_hid.c
+	${CC} --pass1 ${CFLAGS} usb_function_hid.c
 
 # common stuff
-ch-common.o: Makefile ch-common.h ch-common.c
-	$(CC) --PASS1 $(CFLAGS) ch-common.c
-ch-math.o: Makefile ch-math.h ch-math.c
-	$(CC) $(CFLAGS) ch-math.c
-ch-sram.o: Makefile ch-sram.h ch-sram.c
-	$(CC) $(CFLAGS) ch-sram.c
-ch-temp.o: Makefile ch-temp.h ch-temp.c
-	$(CC) $(CFLAGS) ch-temp.c
+d10ktcyx.p1: d10ktcyx.c Makefile
+	$(CC) --pass1 $(CFLAGS) d10ktcyx.c -o$@
+ch-common.p1: ch-common.c ch-common.h Makefile
+	$(CC) --pass1 $(CFLAGS) ch-common.c -o$@
+ch-self-test.p1: ch-self-test.c ch-self-test.h Makefile
+	$(CC) --pass1 $(CFLAGS) ch-self-test.c -o$@
+ch-flash.p1: Makefile ch-flash.h ch-flash.c
+	$(CC) --pass1 $(CFLAGS) ch-flash.c -o$@
+ch-sram.p1: Makefile ch-sram.h ch-sram.c
+	$(CC) --pass1 $(CFLAGS) ch-sram.c -o$@
+ch-temp.p1: Makefile ch-temp.h ch-temp.c
+	$(CC) --pass1 $(CFLAGS) ch-temp.c -o$@
 
 # bootloader
-usb_descriptors_bootloader.o: Makefile usb_config.h usb_descriptors.c
-	$(CC) $(bootloader_CFLAGS) usb_descriptors.c -fo $@
-bootloader.o: Makefile ColorHug.h bootloader.c
-	$(CC) $(bootloader_CFLAGS) bootloader.c
-bootloader.cof bootloader.hex: Makefile ${bootloader_OBJS}
-	$(LD) $(bootloader_LDFLAGS) ${bootloader_OBJS} -o $@
+usb_descriptors_bootloader.p1: Makefile usb_config.h usb_descriptors.c
+	$(CC) --pass1 $(bootloader_CFLAGS) usb_descriptors.c -o$@
+bootloader.p1: Makefile ColorHug.h bootloader.c
+	$(CC) --pass1 $(bootloader_CFLAGS) bootloader.c -o$@
+bootloader.hex: Makefile ${bootloader_OBJS}
+	$(CC) $(bootloader_CFLAGS) ${bootloader_OBJS} -o$@
 
 # firmware
-usb_descriptors_firmware.o: Makefile usb_config.h usb_descriptors.c
-	$(CC) $(firmware_CFLAGS) usb_descriptors.c -fo $@
-firmware.o: Makefile ColorHug.h firmware.c
-	$(CC) $(firmware_CFLAGS) firmware.c
-firmware.cof firmware.hex: Makefile ${firmware_OBJS}
-	$(LD) 18F46J50.lkr $(firmware_LDFLAGS) ${firmware_OBJS} -o $@
+usb_descriptors_firmware.p1: Makefile usb_config.h usb_descriptors.c
+	$(CC) --pass1 $(firmware_CFLAGS) usb_descriptors.c -o$@
+firmware.p1: Makefile ColorHug.h firmware.c
+	$(CC) --pass1 $(firmware_CFLAGS) firmware.c -o$@
+firmware.hex: Makefile ${firmware_OBJS}
+	$(CC) $(firmware_CFLAGS) ${firmware_OBJS} -o$@
+#18F46J50.lkr
 
 # Pad the HEX file into an easy-to-distribute BIN file
 firmware.bin: firmware.hex $(COLORHUG_CMD)
@@ -134,18 +162,31 @@ firmware.bin: firmware.hex $(COLORHUG_CMD)
 all: firmware.bin bootloader.hex
 
 install: firmware.bin
-	${COLORHUG_CMD} flash-firmware-force firmware.bin
+	${COLORHUG_CMD} flash-firmware-force firmware.bin -v
 
 install-bootloader: bootloader.hex
 	${PK2CMD_DIR}/pk2cmd -pPIC16F1454 -f $< -b ${PK2CMD_DIR}/ -m -r
+
+erase:
+	${PK2CMD_DIR}/pk2cmd -pPIC16F1454 -b ${PK2CMD_DIR}/ -e
 
 test: firmware.bin
 	${COLORHUG_CMD} set-integral-time 15 && \
 	${COLORHUG_CMD} take-reading-raw -v
 
 clean:
-	rm -f							\
-	*.hex							\
-	*.cof							\
-	*.bin							\
-	*.o
+	rm -f *.as
+	rm -f *.bin
+	rm -f *.cmf
+	rm -f *.cof
+	rm -f *.d
+	rm -f funclist
+	rm -f *.hex
+	rm -f *.hxl
+	rm -f *.o
+	rm -f *.obj
+	rm -f *.p1
+	rm -f *.pre
+	rm -f *.rlf
+	rm -f *.sdb
+	rm -f *.sym

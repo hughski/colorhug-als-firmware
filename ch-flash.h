@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
  *
- * Copyright (C) 2011 Richard Hughes <richard@hughsie.com>
+ * Copyright (C) 2015 Richard Hughes <richard@hughsie.com>
  *
  * Licensed under the GNU General Public License Version 2
  *
@@ -19,28 +19,18 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef __CH_MATH_H
-#define __CH_MATH_H
+#ifndef __CH_FLASH_H
+#define __CH_FLASH_H
 
-#include "ColorHug.h"
+#include <stdint.h>
 
-/* a 32 bit struct to hold numbers from the range -32767 to +32768
- * with a precision of at least 0.000015 */
-typedef union {
-	struct {
-		uint16_t	fraction;
-		int16_t		offset;
-	};
-	struct {
-		int32_t		raw;
-	};
-} CHugPackedFloat;
+uint8_t		 CHugFlashErase		(uint16_t	 addr,
+					 uint16_t	 len);
+uint8_t		 CHugFlashWrite		(uint16_t	 addr,
+					 uint16_t	 len,
+					 const uint8_t	*data);
+uint8_t		 CHugFlashRead		(uint16_t	 addr,
+					 uint16_t	 len,
+					 uint8_t	*data);
 
-ChError	 CHugPackedFloatAdd		(const CHugPackedFloat	*pf1,
-					 const CHugPackedFloat	*pf2,
-					 CHugPackedFloat	*result);
-ChError	 CHugPackedFloatMultiply	(const CHugPackedFloat	*pf1,
-					 const CHugPackedFloat	*pf2,
-					 CHugPackedFloat	*result);
-
-#endif /* __CH_MATH_H */
+#endif /* __CH_FLASH_H */

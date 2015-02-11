@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
  *
- * Copyright (C) 2011-2012 Richard Hughes <richard@hughsie.com>
+ * Copyright (C) 2011-2015 Richard Hughes <richard@hughsie.com>
  *
  * Licensed under the GNU General Public License Version 2
  *
@@ -19,17 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef __CH_COMMON_H
-#define __CH_COMMON_H
+#ifndef __CH_SELF_TEST_H
+#define __CH_SELF_TEST_H
 
-#include "ColorHug.h"
+#include <stdint.h>
 
-ChColorSelect	 CHugGetColorSelect	(void);
-void		 CHugSetColorSelect	(ChColorSelect	 color_select);
-ChFreqScale	 CHugGetMultiplier	(void);
-void		 CHugSetMultiplier	(ChFreqScale	 multiplier);
-uint8_t		 CHugGetLEDs		(void);
-void		 CHugSetLEDs		(uint8_t	 multiplier);
-void		 CHugFatalError		(ChError	 error);
+uint8_t		 CHugSelfTest		(void);
 
-#endif /* __CH_COMMON_H */
+#endif /* __CH_SELF_TEST_H */
