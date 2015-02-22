@@ -145,7 +145,7 @@ ProcessIO(void)
 	cmd = RxBuffer[CH_BUFFER_INPUT_CMD];
 	switch(cmd) {
 	case CH_CMD_GET_HARDWARE_VERSION:
-		TxBuffer[CH_BUFFER_OUTPUT_DATA] = 0x03;
+		TxBuffer[CH_BUFFER_OUTPUT_DATA] = 0x04;
 		break;
 	case CH_CMD_RESET:
 		/* only reset when USB stack is not busy */

@@ -45,7 +45,7 @@ ISRCode(void)
 }
 
 /* ensure this is incremented on each released build */
-static uint16_t		FirmwareVersion[3] = { 3, 0, 1 };
+static uint16_t		FirmwareVersion[3] = { 3, 0, 2 };
 
 static uint32_t		SensorSerial = 0x0;
 static uint16_t		SensorIntegralTime = 0xffff;
@@ -208,7 +208,7 @@ ProcessIO(void)
 	cmd = RxBuffer[CH_BUFFER_INPUT_CMD];
 	switch(cmd) {
 	case CH_CMD_GET_HARDWARE_VERSION:
-		TxBuffer[CH_BUFFER_OUTPUT_DATA] = 0x03;
+		TxBuffer[CH_BUFFER_OUTPUT_DATA] = 0x04;
 		break;
 	case CH_CMD_GET_COLOR_SELECT:
 		TxBuffer[CH_BUFFER_OUTPUT_DATA] = CHugGetColorSelect();
