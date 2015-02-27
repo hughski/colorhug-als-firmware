@@ -81,6 +81,7 @@ CHugTakeReadingRaw (uint32_t integral_time)
 	const uint8_t abs_scale[] = {  5, 5, 7, 6 }; /* red, white, blue, green */
 	uint32_t i;
 	uint32_t number_edges = 0;
+	uint32_t value;
 	uint8_t ra_tmp = PORTA;
 
 	/* wait for the output to change so we start on a new pulse
@@ -105,15 +106,23 @@ CHugTakeReadingRaw (uint32_t integral_time)
 	/* count how many times we get a rising edge */
 	for (i = 0; i < integral_time; i++) {
 		if (ra_tmp != PORTA) {
-			if (PORTAbits.RA4 == 1)
+			if (PORTAbits.RA4 == 1) {
 				number_edges++;
+				/* overflow */
+				if (number_edges == 0)
+					return UINT32_MAX;
+			}
 			ra_tmp = PORTA;
 		}
 	}
 
 	/* scale it according to the datasheet */
 	ra_tmp = CHugGetColorSelect();
-	number_edges *= abs_scale[ra_tmp];
+	value = number_edges * abs_scale[ra_tmp];
+
+	/* overflow */
+	if (value < number_edges)
+		return UINT32_MAX;
 
 	return number_edges;
 }
