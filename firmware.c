@@ -47,9 +47,7 @@ ISRCode(void)
 /* ensure this is incremented on each released build */
 static uint16_t		FirmwareVersion[3] = { 3, 0, 2 };
 
-static uint32_t		SensorSerial = 0x0;
 static uint16_t		SensorIntegralTime = 0xffff;
-static int32_t		PreScale = 0x0;
 static ChFreqScale	multiplier_old = CH_FREQ_SCALE_0;
 
 /* this is used to map the firmware to a hardware version */
@@ -64,36 +62,6 @@ static uint8_t RxBuffer[CH_USB_HID_EP_SIZE];
 static uint8_t TxBuffer[CH_USB_HID_EP_SIZE];
 USB_HANDLE		USBOutHandle = 0;
 USB_HANDLE		USBInHandle = 0;
-
-/**
- * CHugReadEEprom:
- **/
-static void
-CHugReadEEprom(void)
-{
-	/* read this into RAM so it can be changed */
-	CHugFlashRead(CH_EEPROM_ADDR_CONFIG + CH_EEPROM_OFFSET_SERIAL,
-		      sizeof(uint32_t),
-		      (uint8_t *) &SensorSerial);
-	CHugFlashRead(CH_EEPROM_ADDR_CONFIG + CH_EEPROM_OFFSET_PRE_SCALE,
-		      sizeof(int32_t),
-		      (uint8_t *) &PreScale);
-}
-
-/**
- * CHugWriteEEprom:
- **/
-static void
-CHugWriteEEprom(void)
-{
-	/* we can't call this more than 10,000 times otherwise we'll
-	 * burn out the device */
-	CHugFlashErase(CH_EEPROM_ADDR_CONFIG, CH_FLASH_WRITE_BLOCK_SIZE);
-	CHugFlashWrite(CH_EEPROM_ADDR_CONFIG + CH_EEPROM_OFFSET_SERIAL,
-		       sizeof(uint32_t), (uint8_t *) &SensorSerial);
-	CHugFlashWrite(CH_EEPROM_ADDR_CONFIG + CH_EEPROM_OFFSET_PRE_SCALE,
-		       sizeof(uint32_t), (uint8_t *) &PreScale);
-}
 
 /**
  * CHugTakeReadingRaw:
@@ -243,28 +211,11 @@ ProcessIO(void)
 			&FirmwareVersion,
 			2 * 3);
 		break;
-	case CH_CMD_GET_PRE_SCALE:
-		memcpy (&TxBuffer[CH_BUFFER_OUTPUT_DATA],
-			(const void *) &PreScale,
-			sizeof(int32_t));
-		break;
-	case CH_CMD_SET_PRE_SCALE:
-		memcpy ((void *) &PreScale,
-			(const void *) &RxBuffer[CH_BUFFER_INPUT_DATA],
-			sizeof(int32_t));
-		break;
 	case CH_CMD_GET_SERIAL_NUMBER:
+		reading = 0x0;
 		memcpy (&TxBuffer[CH_BUFFER_OUTPUT_DATA],
-			(const void *) &SensorSerial,
+			(const void *) &reading,
 			4);
-		break;
-	case CH_CMD_SET_SERIAL_NUMBER:
-		memcpy (&SensorSerial,
-			(const void *) &RxBuffer[CH_BUFFER_INPUT_DATA],
-			4);
-		break;
-	case CH_CMD_WRITE_EEPROM:
-		CHugWriteEEprom();
 		break;
 	case CH_CMD_TAKE_READING_RAW:
 		/* take a single reading */
@@ -383,9 +334,6 @@ main(void)
 	CHugSetLEDs(0);
 	CHugSetColorSelect(CH_COLOR_SELECT_WHITE);
 	CHugSetMultiplier(CH_FREQ_SCALE_0);
-
-	/* read out the sensor data from EEPROM */
-	CHugReadEEprom();
 
 	/* Initializes USB module SFRs and firmware variables to known states */
 	USBDeviceInit();

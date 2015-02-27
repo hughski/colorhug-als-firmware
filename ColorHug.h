@@ -134,18 +134,6 @@
 #define	CH_CMD_GET_SERIAL_NUMBER		0x0b
 
 /**
- * CH_CMD_SET_SERIAL_NUMBER:
- *
- * Sets the device serial number.
- *
- * IN:  [1:cmd][4:serial_number]
- * OUT: [1:retval][1:cmd]
- *
- * This command is only available in firmware mode.
- **/
-#define	CH_CMD_SET_SERIAL_NUMBER		0x0c
-
-/**
  * CH_CMD_GET_LEDS:
  *
  * Get the LED state.
@@ -172,18 +160,6 @@
  * This command is only available in firmware mode.
  **/
 #define	CH_CMD_SET_LEDS				0x0e
-
-/**
- * CH_CMD_WRITE_EEPROM:
- *
- * Write values to EEPROM.
- *
- * IN:  [1:cmd][8:eeprom_magic]
- * OUT: [1:retval][1:cmd]
- *
- * This command is only available in firmware mode.
- **/
-#define	CH_CMD_WRITE_EEPROM			0x20
 
 /**
  * CH_CMD_TAKE_READING_RAW:
@@ -287,30 +263,6 @@
 #define	CH_CMD_SET_FLASH_SUCCESS		0x28
 
 /**
- * CH_CMD_GET_PRE_SCALE:
- *
- * Get the pre XYZ scaling constant. @scale is a packed float.
- *
- * IN:  [1:cmd]
- * OUT: [1:retval][1:cmd][4:scale]
- *
- * This command is only available in firmware mode.
- **/
-#define	CH_CMD_GET_PRE_SCALE			0x2c
-
-/**
- * CH_CMD_SET_PRE_SCALE:
- *
- * Set the pre XYZ scaling constant. @scale is a packed float.
- *
- * IN:  [1:cmd][4:scale]
- * OUT: [1:retval][1:cmd]
- *
- * This command is only available in firmware mode.
- **/
-#define	CH_CMD_SET_PRE_SCALE			0x2d
-
-/**
  * CH_CMD_GET_HARDWARE_VERSION:
  *
  * Get the hardware version.
@@ -356,18 +308,6 @@
 /* where the custom firmware is stored */
 #define CH_EEPROM_ADDR_RUNCODE			0x2000	/* bytes */
 #define CH_EEPROM_ADDR_MAX			0x4000	/* bytes */
-
-/* EEPROM address offsets
- *
- *    x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE xF
- * 0x [..serial.] [...............] [pre-scale] [....
- * 1x ...............................................
- * 2x ...............................................
- * 3x ..............................................]
- */
-#define	CH_EEPROM_ADDR_CONFIG			0x1f80	/* bytes (in b/l) */
-#define	CH_EEPROM_OFFSET_SERIAL			0x00	/* 4 bytes */
-#define	CH_EEPROM_OFFSET_PRE_SCALE		0x0a	/* 4 bytes */
 
 /* this is a whole seporate block at the end of the flash */
 #define	CH_EEPROM_ADDR_FLASH_SUCCESS		0x3f80	/* bytes (in f/w) */
