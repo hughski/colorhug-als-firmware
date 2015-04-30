@@ -41,9 +41,6 @@
 __CONFIG(FOSC_INTOSC & WDTE_SWDTEN & PWRTE_ON & MCLRE_OFF & CP_ON & BOREN_ON & CLKOUTEN_OFF & IESO_OFF & FCMEN_OFF);
 __CONFIG(WRT_HALF & CPUDIV_NOCLKDIV & USBLSCLK_48MHz & PLLMULT_3x & PLLEN_ENABLED & STVREN_ON & BORV_LO & LPBOR_OFF & LVP_OFF);
 
-/* ensure this is incremented on each released build */
-static uint16_t	FirmwareVersion[3] = { 0, 2, 1 };
-
 /* USB idle support */
 static uint8_t idle_command = 0x00;
 static uint8_t idle_counter = 0x00;
@@ -152,9 +149,9 @@ ProcessIO(void)
 		idle_command = CH_CMD_RESET;
 		break;
 	case CH_CMD_GET_FIRMWARE_VERSION:
-		memcpy (&TxBuffer[CH_BUFFER_OUTPUT_DATA],
-			&FirmwareVersion,
-			2 * 3);
+		*((uint16_t *) &TxBuffer[CH_BUFFER_OUTPUT_DATA + 0]) = CH_VERSION_MAJOR;
+		*((uint16_t *) &TxBuffer[CH_BUFFER_OUTPUT_DATA + 2]) = CH_VERSION_MINOR;
+		*((uint16_t *) &TxBuffer[CH_BUFFER_OUTPUT_DATA + 4]) = CH_VERSION_MICRO;
 		break;
 	case CH_CMD_ERASE_FLASH:
 		memcpy (&address,

@@ -37,6 +37,11 @@
 #define	CH_USB_HID_EP_OUT			(CH_USB_HID_EP | 0x00)
 #define	CH_USB_HID_EP_SIZE			64
 
+/* ensure this is incremented on each released build */
+#define CH_VERSION_MAJOR			3
+#define CH_VERSION_MINOR			0
+#define CH_VERSION_MICRO			2
+
 /**
  * CH_CMD_GET_COLOR_SELECT:
  *
