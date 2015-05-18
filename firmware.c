@@ -353,6 +353,10 @@ main(void)
 		Delay10KTCYx(0x5f);
 	}
 
+	/* convince the compiler it's actually used */
+	if (flash_id[0] == '\0')
+		CHugFatalError(CH_ERROR_WRONG_UNLOCK_CODE);
+
 	while(1) {
 
 		/* clear watchdog */
