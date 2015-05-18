@@ -51,7 +51,6 @@ CHugSelfTest(void)
 {
 	const uint8_t min_pulses = 3;
 	uint8_t pulses[3];
-	uint8_t rc;
 
 	/* check multiplier can be set and read */
 	CHugSetMultiplier(CH_FREQ_SCALE_0);

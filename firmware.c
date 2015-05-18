@@ -144,12 +144,7 @@ CHugDeviceIdle(void)
 static void
 ProcessIO(void)
 {
-	uint16_t address;
-	uint16_t calibration_index;
 	uint32_t reading;
-	uint8_t checksum;
-	uint8_t i;
-	uint8_t length;
 	uint8_t cmd;
 	uint8_t rc = CH_ERROR_NONE;
 
