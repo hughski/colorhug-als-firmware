@@ -183,6 +183,7 @@ clean:
 	rm -f funclist
 	rm -f *.hex
 	rm -f *.hxl
+	rm -f *.mum
 	rm -f *.o
 	rm -f *.obj
 	rm -f *.p1
