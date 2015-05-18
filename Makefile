@@ -36,6 +36,7 @@ MICROCHIP_TOOLCHAIN_ROOT = ${MICROCHIP_ROOT}/xc8/v1.34
 TOOLCHAIN_URL = http://ww1.microchip.com/downloads/mplab/X/mplabc18-v3.40-linux-full-installer.run
 TOOLCHAIN_INSTALLER   = ${DOWNLOAD_DIR}/mplabc18-v3.40-linux-full-installer.run
 TOOLCHAIN_UNINSTALLER = ${MICROCHIP_TOOLCHAIN_ROOT}/UninstallMPLABC18v3.40
+TOOLCHAIN_DIR = ${MICROCHIP_ROOT}/libs-v2013-06-15/Microchip/USB
 
 CC = ${MICROCHIP_TOOLCHAIN_ROOT}/bin/xc8
 AS = ${MICROCHIP_TOOLCHAIN_ROOT}/mpasm/MPASMWIN
@@ -119,10 +120,10 @@ bootloader_OBJS =						\
 # Specific rules for sources from Microchip's application library.
 # Treated specially since Microchip likes to put white spaces into its
 # default application install paths.
-usb_device.p1: usb_device.c
-	${CC} --pass1 ${CFLAGS} usb_device.c
-usb_function_hid.p1: usb_function_hid.c
-	${CC} --pass1 ${CFLAGS} usb_function_hid.c
+usb_device.p1: ${TOOLCHAIN_DIR}/usb_device.c
+	${CC} --pass1 ${CFLAGS} ${TOOLCHAIN_DIR}/usb_device.c
+usb_function_hid.p1: ${TOOLCHAIN_DIR}/HID\ Device\ Driver/usb_function_hid.c
+	${CC} --pass1 ${CFLAGS} ${TOOLCHAIN_DIR}/HID\ Device\ Driver/usb_function_hid.c
 
 # common stuff
 d10ktcyx.p1: d10ktcyx.c Makefile
