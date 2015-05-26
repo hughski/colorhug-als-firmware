@@ -1,6 +1,7 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
  *
  * Copyright (C) 2011-2015 Richard Hughes <richard@hughsie.com>
+ * Copyright (C) 2015 Benjamin Tissoires <benjamin.tissoires@gmail.com>
  *
  * Licensed under the GNU General Public License Version 2
  *
@@ -55,6 +56,7 @@ ROM USB_DEVICE_DESCRIPTOR device_dsc=
 	0x01				/* Number of possible configurations */
 };
 
+#ifdef COLORHUG_BOOTLOADER
 /* Configuration 1 Descriptor */
 ROM BYTE configDescriptor1[]={
 	/* Configuration Descriptor */
@@ -114,6 +116,59 @@ ROM BYTE configDescriptor1[]={
 	0x40,0x00,			/* size (with extra byte) */
 	0x01				/* polling interval */
 };
+#else
+/* Configuration 1 Descriptor */
+ROM BYTE configDescriptor1[]={
+	/* Configuration Descriptor */
+	0x09,			/* Size of this descriptor in bytes */
+	USB_DESCRIPTOR_CONFIGURATION,	/* CONFIGURATION descriptor type */
+	0x2b,0x00,			/* Total length of data */
+	2,				/* Number of interfaces */
+	1,				/* Index value of this configuration */
+	0,				/* Configuration string index */
+	_DEFAULT | _SELF,		/* Attributes (this device is self-powered, but has no remote wakeup), see usb_device.h */
+	150,				/* Max power consumption (2X mA) */
+
+	/* Interface Descriptor */
+	0x09,				/* Size of this descriptor in bytes */
+	USB_DESCRIPTOR_INTERFACE,	/* INTERFACE descriptor type */
+	1,				/* Interface Number */
+	0,				/* Alternate Setting Number */
+	0,				/* Number of endpoints in this intf */
+	0xff,				/* Class code */
+	'F',				/* Subclass code */
+	'W',				/* Protocol code */
+	0x03,				/* Interface string index */
+
+	/* Interface Descriptor */
+	0x09,   			/* Size of this descriptor in bytes */
+	USB_DESCRIPTOR_INTERFACE,	/* INTERFACE descriptor type */
+	0,				/* Interface Number */
+	0,				/* Alternate Setting Number */
+	1,				/* Number of endpoints in this intf */
+	HID_INTF,			/* Class code */
+	0,				/* Subclass code */
+	0,				/* Protocol code */
+	0,				/* Interface string index */
+
+	/* HID Class-Specific Descriptor */
+	0x09,				/* Size of this descriptor in bytes */
+	DSC_HID,			/* HID descriptor type */
+	0x11,0x01,			/* HID Spec Release Number (BCD format) */
+	0x00,				/* Country Code (0x00 for Not supported) */
+	HID_NUM_OF_DSC,			/* Number of class descriptors, see usbcfg.h */
+	DSC_RPT,			/* Report descriptor type */
+	HID_RPT01_SIZE & 0xff, HID_RPT01_SIZE >> 8,	/* Size of the report descriptor */
+
+	/* Endpoint Descriptor */
+	0x07,
+	USB_DESCRIPTOR_ENDPOINT,	/* Endpoint Descriptor */
+	HID_EP | _EP_IN,		/* EndpointAddress */
+	_INTERRUPT,			/* Attributes */
+	0x40,0x00,			/* size (with extra byte) */
+	0x01,				/* polling interval */
+};
+#endif
 
 /* Language code string descriptor */
 static ROM struct
@@ -184,6 +239,7 @@ ROM struct
 	BYTE report[HID_RPT01_SIZE];
 } hid_rpt01 = {
 {
+#ifdef COLORHUG_BOOTLOADER
 	0x06, 0x00, 0xFF,		/* Usage Page = 0xFF00 (Vendor Defined Page 1) */
 	0x09, 0x01,			/* Usage (Vendor Usage 1) */
 	0xA1, 0x01,			/* Collection (Application) */
@@ -197,7 +253,130 @@ ROM struct
 	0x19, 0x01,			/* Usage Minimum */
 	0x29, 0x40,			/* Usage Maximum - 64 output usages total (0x01 to 0x40) */
 	0x91, 0x02,			/* Output (Data, Array, Abs): Instantiates output packet fields.  Uses same report size and count as "Input" fields, since nothing new/different was specified to the parser since the "Input" item. */
-	0xC0}				/* End Collection */
+	0xC0				/* End Collection */
+#else
+	0x05, 0x20,			/* Usage Page (Sensor)				*/
+	0x09, 0x01,			/* Usage (Sensor)				*/
+	0xa1, 0x01,			/* Collection (Application)			*/
+	0x09, 0x41,			/*  Usage (Light Ambient Light)			*/
+	0xa1, 0x00,			/*  Collection (Physical)			*/
+	0x85, 0x01,			/*   Report ID (1)				*/
+	0x0a, 0x09, 0x03,		/*   Usage (Property: Sensor Connection Type)	*/
+	0x15, 0x00,			/*   Logical Minimum (0)			*/
+	0x25, 0x01,			/*   Logical Maximum (1)			*/
+	0x75, 0x08,			/*   Report Size (8)				*/
+	0x95, 0x01,			/*   Report Count (1)				*/
+	0xa1, 0x02,			/*   Collection (Logical)			*/
+	0x0a, 0x31, 0x08,		/*    Usage (Connection Type: PC Attached)	*/
+	0x0a, 0x32, 0x08,		/*    Usage (Connection Type: PC External)	*/
+	0xb1, 0x00,			/*    Feature (Data,Arr,Abs)			*/
+	0xc0,				/*   End Collection				*/
+	0x0a, 0x16, 0x03,		/*   Usage (Property: Reporting State)		*/
+	0x15, 0x00,			/*   Logical Minimum (0)			*/
+	0x25, 0x02,			/*   Logical Maximum (2)			*/
+	0xa1, 0x02,			/*   Collection (Logical)			*/
+	0x0a, 0x40, 0x08,		/*    Usage (Reporting State: Report No Events)	*/
+	0x0a, 0x41, 0x08,		/*    Usage (Reporting State: Report All Events)*/
+	0x0a, 0x42, 0x08,		/*    Usage (Reporting State: Report Threshold Events)*/
+	0xb1, 0x00,			/*    Feature (Data,Arr,Abs)			*/
+	0xc0,				/*   End Collection				*/
+	0x0a, 0x19, 0x03,		/*   Usage (Property: Power State)		*/
+	0x15, 0x00,			/*   Logical Minimum (0)			*/
+	0x25, 0x02,			/*   Logical Maximum (2)			*/
+	0xa1, 0x02,			/*   Collection (Logical)			*/
+	0x0a, 0x50, 0x08,		/*    Usage (Power State: Undefined)		*/
+	0x0a, 0x51, 0x08,		/*    Usage (Power State: D0 Full Power)	*/
+	0x0a, 0x52, 0x08,		/*    Usage (Power State: D1 Low Power)		*/
+	0xb1, 0x00,			/*    Feature (Data,Arr,Abs)			*/
+	0xc0,				/*   End Collection				*/
+	0x0a, 0x01, 0x02,		/*   Usage (Event: Sensor State)		*/
+	0x15, 0x00,			/*   Logical Minimum (0)			*/
+	0x25, 0x06,			/*   Logical Maximum (6)			*/
+	0xa1, 0x02,			/*   Collection (Logical)			*/
+	0x0a, 0x00, 0x08,		/*    Usage (Sensor State: Undefined)		*/
+	0x0a, 0x01, 0x08,		/*    Usage (Sensor State: Ready)		*/
+	0x0a, 0x02, 0x08,		/*    Usage (Sensor State: Not Available)	*/
+	0x0a, 0x03, 0x08,		/*    Usage (Sensor State: No Data Sel)		*/
+	0x0a, 0x04, 0x08,		/*    Usage (Sensor State: Initializing)	*/
+	0x0a, 0x05, 0x08,		/*    Usage (Sensor State: Access Denied)	*/
+	0x0a, 0x06, 0x08,		/*    Usage (Sensor State: Error)		*/
+	0xb1, 0x00,			/*    Feature (Data,Arr,Abs)			*/
+	0xc0,				/*   End Collection				*/
+	0x0a, 0x0e, 0x03,		/*   Usage (Property: Report Interval)		*/
+	0x15, 0x00,			/*   Logical Minimum (0)			*/
+	0x27, 0xff, 0xff, 0xff, 0xff,	/*   Logical Maximum (4294967295)		*/
+	0x75, 0x20,			/*   Report Size (32)				*/
+	0x55, 0x00,			/*   Unit Exponent (0)				*/
+	0xb1, 0x02,			/*   Feature (Data,Var,Abs)			*/
+	0x05, 0x20,			/*   Usage Page (Sensor)			*/
+	0x0a, 0x01, 0x02,		/*   Usage (Event: Sensor State)		*/
+	0x15, 0x00,			/*   Logical Minimum (0)			*/
+	0x25, 0x05,			/*   Logical Maximum (5)			*/
+	0x75, 0x08,			/*   Report Size (8)				*/
+	0x95, 0x01,			/*   Report Count (1)				*/
+	0xa1, 0x02,			/*   Collection (Logical)			*/
+	0x0a, 0x00, 0x08,		/*    Usage (Sensor State: Undefined)		*/
+	0x0a, 0x01, 0x08,		/*    Usage (Sensor State: Ready)		*/
+	0x0a, 0x02, 0x08,		/*    Usage (Sensor State: Not Available)	*/
+	0x0a, 0x03, 0x08,		/*    Usage (Sensor State: No Data Sel)		*/
+	0x0a, 0x05, 0x08,		/*    Usage (Sensor State: Access Denied)	*/
+	0x0a, 0x06, 0x08,		/*    Usage (Sensor State: Error)		*/
+	0x81, 0x00,			/*    Input (Data,Arr,Abs)			*/
+	0xc0,				/*   End Collection				*/
+	0x0a, 0x02, 0x02,		/*   Usage (Event: Sensor Event)		*/
+	0x15, 0x00,			/*   Logical Minimum (0)			*/
+	0x25, 0x04,			/*   Logical Maximum (4)			*/
+	0xa1, 0x02,			/*   Collection (Logical)			*/
+	0x0a, 0x10, 0x08,		/*    Usage (Sensor Event: Unknown)		*/
+	0x0a, 0x11, 0x08,		/*    Usage (Sensor Event: State Changed)	*/
+	0x0a, 0x12, 0x08,		/*    Usage (Sensor Event: Property Changed)	*/
+	0x0a, 0x13, 0x08,		/*    Usage (Sensor Event: Data Updated)	*/
+	0x0a, 0x14, 0x08,		/*    Usage (Sensor Event: Poll Response)	*/
+	0x81, 0x00,			/*    Input (Data,Arr,Abs)			*/
+	0xc0,				/*   End Collection				*/
+	0x0a, 0xd1, 0x04,		/*   Usage (Data Field: Illuminance)		*/
+	0x15, 0x00,			/*   Logical Minimum (0)			*/
+	0x26, 0xff, 0xff,		/*   Logical Maximum (65535)			*/
+	0x75, 0x20,			/*   Report Size (32)				*/
+	0x55, 0x08,			/*   Unit Exponent (-8)				*/
+	0x81, 0x02,			/*   Input (Data,Var,Abs)			*/
+	0x06, 0xc0, 0xff,		/*   Usage Page (Vendor Usage Page 0xffc0)	*/
+	0x09, 0x02,			/*   Usage (Vendor Usage 0x02)			*/
+	0xa1, 0x01,			/*   Collection (Application)			*/
+	0x85, 0x02,			/*    Report ID (2)				*/
+	0x09, 0x01,			/*    Usage (Vendor Usage 0x01)			*/
+	0x09, 0x0d,			/*    Usage (Vendor Usage 0x0d)			*/
+	0x09, 0x03,			/*    Usage (Vendor Usage 0x03)			*/
+	0x95, 0x03,			/*    Report Count (3)				*/
+	0xb1, 0x22,			/*    Feature (Data,Var,Abs,NoPref)		*/
+	0x09, 0x05,			/*    Usage (Vendor Usage 0x05)			*/
+	0x75, 0x10,			/*    Report Size (16)				*/
+	0x95, 0x01,			/*    Report Count (1)				*/
+	0xb1, 0x22,			/*    Feature (Data,Var,Abs,NoPref)		*/
+	0xc0,				/*   End Collection				*/
+	0x09, 0x03,			/*   Usage (Vendor Usage 0x03)			*/
+	0xa1, 0x01,			/*   Collection (Application)			*/
+	0x85, 0x03,			/*    Report ID (3)				*/
+	0x09, 0x30,			/*    Usage (Vendor Usage 0x30)			*/
+	0x75, 0x08,			/*    Report Size (8)				*/
+	0x95, 0x01,			/*    Report Count (1)				*/
+	0xb1, 0x22,			/*    Feature (Data,Var,Abs,NoPref)		*/
+	0x09, 0x07,			/*    Usage (Vendor Usage 0x07)			*/
+	0x75, 0x30,			/*    Report Size (48)				*/
+	0x95, 0x01,			/*    Report Count (1)				*/
+	0xb1, 0x22,			/*    Feature (Data,Var,Abs,NoPref)		*/
+	0x09, 0x0b,			/*    Usage (Vendor Usage 0x0b)			*/
+	0x75, 0x20,			/*    Report Size (32)				*/
+	0xb1, 0x22,			/*    Feature (Data,Var,Abs,NoPref)		*/
+	0x09, 0x24,			/*    Usage (Vendor Usage 0x24)			*/
+	0x09, 0x28,			/*    Usage (Vendor Usage 0x28)			*/
+	0x75, 0x08,			/*    Report Size (8)				*/
+	0x95, 0x02,			/*    Report Count (2)				*/
+	0xc0,				/*   End Collection				*/
+	0xc0,				/*  End Collection				*/
+	0xc0,				/* End Collection				*/
+#endif
+}
 };
 
 /* only one configuration descriptor */

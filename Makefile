@@ -105,7 +105,7 @@ firmware_OBJS =							\
 	ch-flash.p1						\
 	usb_descriptors_firmware.p1				\
 	usb_device.p1						\
-	usb_function_hid.p1
+	usb_function_hid_firmware.p1
 
 bootloader_OBJS =						\
 	bootloader.p1						\
@@ -115,15 +115,17 @@ bootloader_OBJS =						\
 	ch-self-test.p1						\
 	usb_descriptors_bootloader.p1				\
 	usb_device.p1						\
-	usb_function_hid.p1
+	usb_function_hid_bootloader.p1
 
 # Specific rules for sources from Microchip's application library.
 # Treated specially since Microchip likes to put white spaces into its
 # default application install paths.
 usb_device.p1: ${TOOLCHAIN_DIR}/usb_device.c
 	${CC} --pass1 ${CFLAGS} ${TOOLCHAIN_DIR}/usb_device.c
-usb_function_hid.p1: ${TOOLCHAIN_DIR}/HID\ Device\ Driver/usb_function_hid.c
-	${CC} --pass1 ${CFLAGS} ${TOOLCHAIN_DIR}/HID\ Device\ Driver/usb_function_hid.c
+usb_function_hid_bootloader.p1: ${TOOLCHAIN_DIR}/HID\ Device\ Driver/usb_function_hid.c
+	${CC} --pass1 ${bootloader_CFLAGS} ${TOOLCHAIN_DIR}/HID\ Device\ Driver/usb_function_hid.c -o$@
+usb_function_hid_firmware.p1: ${TOOLCHAIN_DIR}/HID\ Device\ Driver/usb_function_hid.c
+	${CC} --pass1 ${firmware_CFLAGS} ${TOOLCHAIN_DIR}/HID\ Device\ Driver/usb_function_hid.c -o$@
 
 # common stuff
 d10ktcyx.p1: d10ktcyx.c Makefile

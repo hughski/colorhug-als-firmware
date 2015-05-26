@@ -29,7 +29,7 @@
 /* device constants */
 #define	CH_USB_VID				0x273f
 #define	CH_USB_PID_BOOTLOADER			0x1006
-#define	CH_USB_PID_FIRMWARE			0x1007
+#define	CH_USB_PID_FIRMWARE			0x1008
 #define	CH_USB_CONFIG				0x0001
 #define	CH_USB_INTERFACE			0x0000
 #define	CH_USB_HID_EP				0x0001
@@ -38,9 +38,9 @@
 #define	CH_USB_HID_EP_SIZE			64
 
 /* ensure this is incremented on each released build */
-#define CH_VERSION_MAJOR			3
+#define CH_VERSION_MAJOR			4
 #define CH_VERSION_MINOR			0
-#define CH_VERSION_MICRO			2
+#define CH_VERSION_MICRO			0
 
 /**
  * CH_CMD_GET_COLOR_SELECT:
@@ -347,6 +347,23 @@ typedef enum {
 	CH_FREQ_SCALE_2,
 	CH_FREQ_SCALE_100
 } ChFreqScale;
+
+typedef enum {
+	CH_SENSOR_STATE_UNKNOWN = 0,
+	CH_SENSOR_STATE_READY,
+	CH_SENSOR_STATE_NOT_AVAILABLE,
+	CH_SENSOR_STATE_NO_DATA_SEL,
+	CH_SENSOR_STATE_ACCESS_DENIED,
+	CH_SENSOR_STATE_ERROR
+} ChSensorState;
+
+typedef enum {
+	CH_SENSOR_EVENT_UNKNOWN_EVENT = 0,
+	CH_SENSOR_EVENT_STATE_CHANGED,
+	CH_SENSOR_EVENT_PROPERTY_CHANGED,
+	CH_SENSOR_EVENT_DATA_UPDATED,
+	CH_SENSOR_EVENT_POLL_RESPONSE,
+} ChSensorEvent;
 
 /* fatal error morse code */
 typedef enum {

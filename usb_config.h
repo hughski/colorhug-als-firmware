@@ -62,6 +62,20 @@
 #define HID_INT_OUT_EP_SIZE		3
 #define HID_INT_IN_EP_SIZE		3
 #define HID_NUM_OF_DSC			1
+
+#ifdef COLORHUG_BOOTLOADER
+
 #define HID_RPT01_SIZE			29
+
+#else
+
+#define HID_RPT01_SIZE			269
+
+#define USER_GET_REPORT_HANDLER CHugGetReportHandler
+#define USER_SET_REPORT_HANDLER CHugSetReportHandler
+
+#endif
+
+#define HID_FEATURE			0x0300
 
 #endif
