@@ -1,6 +1,7 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
  *
  * Copyright (C) 2011-2015 Richard Hughes <richard@hughsie.com>
+ * Copyright (C) 2015 Benjamin Tissoires <benjamin.tissoires@gmail.com>
  *
  * Licensed under the GNU General Public License Version 2
  *
@@ -36,6 +37,51 @@
 #include <USB/usb_device.h>
 #include <USB/usb_function_hid.h>
 
+#define CH_REPORT_HID_SENSOR			0x01
+#define CH_REPORT_SENSOR_SETTINGS		0x02
+#define CH_REPORT_SYSTEM_SETTINGS		0x03
+
+typedef struct {
+	uint8_t			 report_id;
+	uint8_t			 sensor_state;
+	uint8_t			 sensor_event;
+	uint32_t		 illuminance;
+} ChInputReport;
+
+typedef struct {
+	uint8_t			 report_id;
+	uint8_t			 connection_type;
+	uint8_t			 reporting_state;
+	uint8_t			 power_state;
+	uint8_t			 sensor_state;
+	uint32_t		 report_interval;
+} ChHidSensorFeature;
+
+typedef struct {
+	uint8_t			 report_id;
+	uint8_t	 		 color_select;
+	uint8_t			 LEDs_state;
+	uint8_t			 multiplier;
+	uint16_t		 integral_time;
+} ChSensorSettings;
+
+typedef struct {
+	uint8_t			 report_id;
+	uint8_t			 hardware_version;
+	uint16_t		 version_major;
+	uint16_t		 version_minor;
+	uint16_t		 version_micro;
+	uint32_t		 serial;
+	uint8_t			 reset;
+	uint8_t			 flash_flag;
+} ChSystemSettings;
+
+union ChFeatureReport {
+	ChHidSensorFeature	 hid;
+	ChSensorSettings	 sensor;
+	ChSystemSettings	 system;
+};
+
 /**
  * ISRCode:
  **/
@@ -45,20 +91,20 @@ ISRCode(void)
 }
 
 static uint16_t		SensorIntegralTime = 0xffff;
-static ChFreqScale	multiplier_old = CH_FREQ_SCALE_0;
+static ChFreqScale	multiplier = CH_FREQ_SCALE_100;
 
 /* this is used to map the firmware to a hardware version */
 static const char flash_id[] = CH_FIRMWARE_ID_TOKEN;
 
 /* USB idle support */
 static uint8_t		idle_command = 0x00;
-static uint8_t		idle_counter = 0x00;
+static uint16_t		idle_counter = 0x00;
 
 /* USB buffers */
-static uint8_t RxBuffer[CH_USB_HID_EP_SIZE];
-static uint8_t TxBuffer[CH_USB_HID_EP_SIZE];
-USB_HANDLE		USBOutHandle = 0;
-USB_HANDLE		USBInHandle = 0;
+static ChInputReport TxBuffer;
+static union ChFeatureReport TxFeature;
+static union ChFeatureReport RxFeature;
+USB_HANDLE USBInHandle = 0;
 
 /**
  * CHugTakeReadingRaw:
@@ -144,134 +190,38 @@ CHugDeviceIdle(void)
 static void
 ProcessIO(void)
 {
-	uint32_t reading;
-	uint8_t cmd;
-	uint8_t rc = CH_ERROR_NONE;
-
 	/* User Application USB tasks */
 	if ((USBDeviceState < CONFIGURED_STATE) ||
 	    (USBSuspendControl == 1))
 		return;
 
-	/* no data was received */
-	if (HIDRxHandleBusy(USBOutHandle)) {
-		if (idle_counter++ == 0xff &&
-		    idle_command != 0x00)
-			CHugDeviceIdle();
+	/* prevent to send too many readings */
+	if (idle_counter++ != 0x00)
 		return;
-	}
 
-	/* we're waiting for a read from the host */
-	if (HIDTxHandleBusy(USBInHandle)) {
-		/* hijack the pending read with the new error */
-		TxBuffer[CH_BUFFER_OUTPUT_RETVAL] = CH_ERROR_INCOMPLETE_REQUEST;
-		goto re_arm_rx;
-	}
-
-	/* got data, reset idle counter */
-	idle_counter = 0;
-
-	/* clear for debugging */
-	memset (TxBuffer, 0xff, sizeof (TxBuffer));
-
-	cmd = RxBuffer[CH_BUFFER_INPUT_CMD];
-	switch(cmd) {
-	case CH_CMD_GET_HARDWARE_VERSION:
-		TxBuffer[CH_BUFFER_OUTPUT_DATA] = 0x04;
-		break;
-	case CH_CMD_GET_COLOR_SELECT:
-		TxBuffer[CH_BUFFER_OUTPUT_DATA] = CHugGetColorSelect();
-		break;
-	case CH_CMD_SET_COLOR_SELECT:
-		CHugSetColorSelect(RxBuffer[CH_BUFFER_INPUT_DATA]);
-		break;
-	case CH_CMD_GET_LEDS:
-		TxBuffer[CH_BUFFER_OUTPUT_DATA] = CHugGetLEDs();
-		break;
-	case CH_CMD_SET_LEDS:
-		CHugSetLEDs(RxBuffer[CH_BUFFER_INPUT_DATA + 0]);
-		break;
-	case CH_CMD_GET_MULTIPLIER:
-		TxBuffer[CH_BUFFER_OUTPUT_DATA] = CHugGetMultiplier();
-		break;
-	case CH_CMD_SET_MULTIPLIER:
-		CHugSetMultiplier(RxBuffer[CH_BUFFER_INPUT_DATA]);
-		break;
-	case CH_CMD_GET_INTEGRAL_TIME:
-		memcpy (&TxBuffer[CH_BUFFER_OUTPUT_DATA],
-			(void *) &SensorIntegralTime,
-			2);
-		break;
-	case CH_CMD_SET_INTEGRAL_TIME:
-		memcpy (&SensorIntegralTime,
-			(const void *) &RxBuffer[CH_BUFFER_INPUT_DATA],
-			2);
-		break;
-	case CH_CMD_GET_FIRMWARE_VERSION:
-		*((uint16_t *) &TxBuffer[CH_BUFFER_OUTPUT_DATA + 0]) = CH_VERSION_MAJOR;
-		*((uint16_t *) &TxBuffer[CH_BUFFER_OUTPUT_DATA + 2]) = CH_VERSION_MINOR;
-		*((uint16_t *) &TxBuffer[CH_BUFFER_OUTPUT_DATA + 4]) = CH_VERSION_MICRO;
-		break;
-	case CH_CMD_GET_SERIAL_NUMBER:
-		reading = 0x0;
-		memcpy (&TxBuffer[CH_BUFFER_OUTPUT_DATA],
-			(const void *) &reading,
-			4);
-		break;
-	case CH_CMD_TAKE_READING_RAW:
-		/* take a single reading */
-		reading = CHugTakeReadingRaw(SensorIntegralTime);
-		memcpy (&TxBuffer[CH_BUFFER_OUTPUT_DATA],
-			(const void *) &reading,
-			sizeof(uint32_t));
-		break;
-	case CH_CMD_RESET:
-		/* only reset when USB stack is not busy */
-		idle_command = CH_CMD_RESET;
-		break;
-	case CH_CMD_SET_FLASH_SUCCESS:
-		if (RxBuffer[CH_BUFFER_INPUT_DATA] != 0x01 &&
-		    RxBuffer[CH_BUFFER_INPUT_DATA] != 0xff) {
-			rc = CH_ERROR_INVALID_VALUE;
-			break;
-		}
-		rc = CHugFlashErase(CH_EEPROM_ADDR_FLASH_SUCCESS,
-				    CH_FLASH_ERASE_BLOCK_SIZE);
-		if (rc != CH_ERROR_NONE)
-			break;
-		rc = CHugFlashWrite(CH_EEPROM_ADDR_FLASH_SUCCESS, 1,
-				    &RxBuffer[CH_BUFFER_INPUT_DATA]);
-		break;
-	default:
-		rc = CH_ERROR_UNKNOWN_CMD;
-		break;
-	}
-
-	/* always send return code */
 	if(!HIDTxHandleBusy(USBInHandle)) {
-		TxBuffer[CH_BUFFER_OUTPUT_RETVAL] = rc;
-		TxBuffer[CH_BUFFER_OUTPUT_CMD] = cmd;
+		CHugSetMultiplier(multiplier);
+
+		TxBuffer.report_id = CH_REPORT_HID_SENSOR;
+		TxBuffer.sensor_state = CH_SENSOR_STATE_READY; // multiplier == CH_FREQ_SCALE_100 ? CH_SENSOR_STATE_READY : CH_SENSOR_STATE_NO_DATA_SEL;
+		TxBuffer.sensor_event = CH_SENSOR_EVENT_DATA_UPDATED;
+		TxBuffer.illuminance = CHugTakeReadingRaw(SensorIntegralTime);
+
 		USBInHandle = HIDTxPacket(HID_EP,
-					  (BYTE*)&TxBuffer[0],
-					  CH_USB_HID_EP_SIZE);
+					  (BYTE*)&TxBuffer,
+					  sizeof(TxBuffer));
+		CHugSetMultiplier(CH_FREQ_SCALE_0);
+	} else {
+		/* nobody reads */
+		if (idle_command != 0x00) {
+			CHugDeviceIdle();
+			return;
+		}
 	}
-re_arm_rx:
-	/* re-arm the OUT endpoint for the next packet */
-	USBOutHandle = HIDRxPacket(HID_EP,
-				   (BYTE*)&RxBuffer,
-				   CH_USB_HID_EP_SIZE);
 }
 
 /**
  * USER_USB_CALLBACK_EVENT_HANDLER:
- * @event: the type of event
- * @pdata: pointer to the event data
- * @size: size of the event data
- *
- * This function is called from the USB stack to
- * notify a user application that a USB event
- * occured.  This callback is in interrupt context
- * when the USB_INTERRUPT option is selected.
  **/
 BOOL
 USER_USB_CALLBACK_EVENT_HANDLER(int event, void *pdata, WORD size)
@@ -281,7 +231,6 @@ USER_USB_CALLBACK_EVENT_HANDLER(int event, void *pdata, WORD size)
 		break;
 	case EVENT_SUSPEND:
 		/* need to reduce power to < 2.5mA, so power down sensor */
-		multiplier_old = CHugGetMultiplier();
 		CHugSetMultiplier(CH_FREQ_SCALE_0);
 
 		/* power down LEDs */
@@ -289,20 +238,13 @@ USER_USB_CALLBACK_EVENT_HANDLER(int event, void *pdata, WORD size)
 		break;
 	case EVENT_RESUME:
 		/* restore full power mode */
-		CHugSetMultiplier(multiplier_old);
 		break;
 	case EVENT_CONFIGURED:
 		/* enable the HID endpoint */
 		USBEnableEndpoint(HID_EP,
 				  USB_IN_ENABLED|
-				  USB_OUT_ENABLED|
 				  USB_HANDSHAKE_ENABLED|
 				  USB_DISALLOW_SETUP);
-
-		/* re-arm the OUT endpoint for the next packet */
-		USBOutHandle = HIDRxPacket(HID_EP,
-					   (BYTE*)&RxBuffer,
-					   CH_USB_HID_EP_SIZE);
 		break;
 	case EVENT_EP0_REQUEST:
 		USBCheckHIDRequest();
@@ -313,6 +255,142 @@ USER_USB_CALLBACK_EVENT_HANDLER(int event, void *pdata, WORD size)
 		break;
 	}
 	return TRUE;
+}
+
+/**
+ * CHugGetReportHandler:
+ **/
+void
+CHugGetReportHandler(void)
+{
+	uint8_t bytes_to_send;
+
+	/* handle only get_feature reports */
+	if ((SetupPkt.wValue & 0xff00) != HID_FEATURE)
+		return;
+
+	/* clear for debugging */
+	memset ((uint8_t*)&TxFeature, 0xff, sizeof (TxFeature));
+
+	switch (SetupPkt.wValue & 0x00ff) {
+		case CH_REPORT_HID_SENSOR:
+			TxFeature.hid.report_id = CH_REPORT_HID_SENSOR;
+			TxFeature.hid.connection_type = 0x01; /* PC External */
+			TxFeature.hid.reporting_state = 0x02; /* Report All Events */
+			TxFeature.hid.power_state = multiplier == CH_FREQ_SCALE_100 ?
+						     0x01 : /* Full Power */
+						     0x02; /* Low Power */
+			TxFeature.hid.sensor_state = CH_SENSOR_STATE_READY;
+			TxFeature.hid.report_interval = 1000;
+			bytes_to_send = sizeof(ChHidSensorFeature);
+			break;
+		case CH_REPORT_SENSOR_SETTINGS:
+			TxFeature.sensor.report_id = CH_REPORT_SENSOR_SETTINGS;
+			TxFeature.sensor.color_select = CHugGetColorSelect();
+			TxFeature.sensor.LEDs_state = CHugGetLEDs();
+			TxFeature.sensor.multiplier = multiplier;
+			TxFeature.sensor.integral_time = SensorIntegralTime;
+			bytes_to_send = sizeof(ChSensorSettings);
+			break;
+		case CH_REPORT_SYSTEM_SETTINGS:
+			TxFeature.system.report_id = CH_REPORT_SYSTEM_SETTINGS;
+			TxFeature.system.hardware_version = 0x04;
+			TxFeature.system.version_major = CH_VERSION_MAJOR;
+			TxFeature.system.version_minor = CH_VERSION_MINOR;
+			TxFeature.system.version_micro = CH_VERSION_MICRO;
+			TxFeature.system.serial = 0x00;
+			TxFeature.system.reset = 0x00; /* Reset - write only */
+			TxFeature.system.flash_flag = 0x00; /* Flash Success - write only */
+			bytes_to_send = sizeof(ChSystemSettings);
+			break;
+		default:
+			return;
+	}
+
+	if (SetupPkt.wLength < bytes_to_send)
+		bytes_to_send = SetupPkt.wLength;
+
+	/* Now send the reponse packet data to the host, via the control transfer on EP0 */
+	USBEP0SendRAMPtr((uint8_t*)&TxFeature, bytes_to_send, USB_EP0_RAM);
+}
+
+static uint8_t
+CHugSetFlashSuccess(void)
+{
+	uint8_t rc;
+
+	/* TODO check if we are not sending data */
+	rc = CHugFlashErase(CH_EEPROM_ADDR_FLASH_SUCCESS,
+			    CH_FLASH_ERASE_BLOCK_SIZE);
+	if (rc != CH_ERROR_NONE)
+		return rc;
+
+	return CHugFlashWrite(CH_EEPROM_ADDR_FLASH_SUCCESS, 1,
+			      &RxFeature.system.flash_flag);
+}
+
+/**
+ * CHugSetReportComplete:
+ *
+ * Called when USBEP0Receive from SET_REPORT completes.
+ **/
+static void
+CHugSetReportComplete(void)
+{
+	switch (SetupPkt.wValue & 0x00ff) {
+		case CH_REPORT_HID_SENSOR:
+			if (RxFeature.hid.power_state) {
+				multiplier = RxFeature.hid.power_state == 0x01 ?
+						CH_FREQ_SCALE_100 : CH_FREQ_SCALE_0;
+			}
+			break;
+		case CH_REPORT_SENSOR_SETTINGS:
+			CHugSetColorSelect(RxFeature.sensor.color_select);
+			CHugSetLEDs(RxFeature.sensor.LEDs_state);
+			multiplier = RxFeature.sensor.multiplier;
+			SensorIntegralTime = RxFeature.sensor.integral_time;
+			break;
+		case CH_REPORT_SYSTEM_SETTINGS:
+			if (RxFeature.system.flash_flag)
+				CHugSetFlashSuccess();
+
+			/* the reset flag has to be checked last */
+			if (RxFeature.system.reset)
+				idle_command = CH_CMD_RESET;
+			break;
+	}
+}
+
+/**
+ * CHugSetReportHandler:
+ **/
+void
+CHugSetReportHandler(void)
+{
+	uint8_t bytesToReceive;
+
+	/* handle only set_feature reports */
+	if ((SetupPkt.wValue & 0xff00) != HID_FEATURE)
+		return;
+
+	switch (SetupPkt.wValue & 0x00ff) {
+		case CH_REPORT_HID_SENSOR:
+		case CH_REPORT_SENSOR_SETTINGS:
+		case CH_REPORT_SYSTEM_SETTINGS:
+			break;
+		default:
+			return;
+	}
+
+	if (SetupPkt.wLength > sizeof(RxFeature))
+		bytesToReceive = sizeof(RxFeature);
+	else
+		bytesToReceive = SetupPkt.wLength;
+
+	/* Prepare EP0 to receive the control transfer data */
+	USBEP0Receive((BYTE*)&RxFeature,
+		      bytesToReceive,
+		      CHugSetReportComplete);
 }
 
 /**
