@@ -122,7 +122,7 @@ ROM BYTE configDescriptor1[]={
 	/* Configuration Descriptor */
 	0x09,			/* Size of this descriptor in bytes */
 	USB_DESCRIPTOR_CONFIGURATION,	/* CONFIGURATION descriptor type */
-	0x2b,0x00,			/* Total length of data */
+	0x34,0x00,			/* Total length of data */
 	2,				/* Number of interfaces */
 	1,				/* Index value of this configuration */
 	0,				/* Configuration string index */
@@ -139,6 +139,17 @@ ROM BYTE configDescriptor1[]={
 	'F',				/* Subclass code */
 	'W',				/* Protocol code */
 	0x03,				/* Interface string index */
+
+	/* Interface Descriptor */
+	0x09,				/* Size of this descriptor in bytes */
+	USB_DESCRIPTOR_INTERFACE,	/* INTERFACE descriptor type */
+	2,				/* Interface Number */
+	0,				/* Alternate Setting Number */
+	0,				/* Number of endpoints in this intf */
+	0xff,				/* Class code */
+	'G',				/* Subclass code */
+	'U',				/* Protocol code */
+	0x04,				/* Interface string index */
 
 	/* Interface Descriptor */
 	0x09,   			/* Size of this descriptor in bytes */
@@ -231,6 +242,15 @@ sizeof(sd003),USB_DESCRIPTOR_STRING,
 	0x30 + CH_VERSION_MAJOR,'.',
 	0x30 + CH_VERSION_MINOR,'.',
 	0x30 + CH_VERSION_MICRO
+}};
+
+/* Firmware GUID string descriptor (unicode) */
+ROM struct{BYTE bLength;BYTE bDscType;WORD string[36];}sd004={
+sizeof(sd004),USB_DESCRIPTOR_STRING,
+{'8','4','f','4','0','4','6','4','-',
+ '9','2','7','2','-',
+ '4','e','f','7','-','9','3','9','9','-',
+ 'c','d','9','5','f','1','2','d','a','6','9','6'
 }};
 
 /* HID descriptor -- see http://www.usb.org/developers/hidpage#HID%20Descriptor%20Tool */
@@ -391,7 +411,8 @@ ROM BYTE *ROM USB_SD_Ptr[]=
 	(ROM BYTE *ROM)&sd000,
 	(ROM BYTE *ROM)&sd001,
 	(ROM BYTE *ROM)&sd002,
-	(ROM BYTE *ROM)&sd003
+	(ROM BYTE *ROM)&sd003,
+	(ROM BYTE *ROM)&sd004
 };
 
 #endif
