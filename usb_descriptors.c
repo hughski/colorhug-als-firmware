@@ -358,7 +358,7 @@ ROM struct
 	0x15, 0x00,			/*   Logical Minimum (0)			*/
 	0x26, 0xff, 0xff,		/*   Logical Maximum (65535)			*/
 	0x75, 0x20,			/*   Report Size (32)				*/
-	0x55, 0x08,			/*   Unit Exponent (-8)				*/
+	0x55, 0x0e,			/*   Unit Exponent (-2)				*/
 	0x81, 0x02,			/*   Input (Data,Var,Abs)			*/
 	0x06, 0xc0, 0xff,		/*   Usage Page (Vendor Usage Page 0xffc0)	*/
 	0x09, 0x02,			/*   Usage (Vendor Usage 0x02)			*/
