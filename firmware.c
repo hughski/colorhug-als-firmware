@@ -419,12 +419,10 @@ main(void)
 	USBDeviceAttach();
 
 	/* do the welcome flash */
-	for (i = 0; i < 3; i++) {
-		CHugSetLEDs(1);
-		Delay10KTCYx(0x5f);
-		CHugSetLEDs(0);
-		Delay10KTCYx(0x5f);
-	}
+	CHugSetLEDs(1);
+	Delay10KTCYx(0xff);
+	Delay10KTCYx(0xff);
+	CHugSetLEDs(0);
 
 	/* convince the compiler it's actually used */
 	if (flash_id[0] == '\0')
