@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2015 Richard Hughes <richard@hughsie.com> -->
+<component type="firmware">
+  <id>com.hughski.ColorHugALS.firmware</id>
+  <name>ColorHugALS</name>
+  <summary>Firmware for the Hughski ColorHug Ambient Light Sensor</summary>
+  <description>
+    <p>
+      Updating the firmware on your ColorHugALS device improves performance and
+      adds new features.
+    </p>
+  </description>
+  <provides>
+    <firmware type="flashed">84f40464-9272-4ef7-9399-cd95f12da696</firmware>
+  </provides>
+  <url type="homepage">http://www.hughski.com/</url>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0+</project_license>
+  <updatecontact>richard_at_hughsie.com</updatecontact>
+  <developer_name>Hughski Limited</developer_name>
+  <releases>
+    <release urgency="low" version="4.0.3" timestamp="1453802420">
+      <description>
+        <p>
+         Remove the invalid .inf file from the release tarball.
+         No code or behaviour changes.
+        </p>
+      </description>
+    </release>
+    <release urgency="medium" version="4.0.2" timestamp="1442321232">
+      <description>
+        <p>
+          We now expose a standard HID ALS sensor, which means the device
+          works with Linux, OS X and Windows8+ without installing a driver.
+        </p>
+        <p>
+          Many thanks to Benjamin Tissoires for the initial firmware, testing
+          and client code examples.
+        </p>
+      </description>
+    </release>
+  </releases>
+</component>
